@@ -11,7 +11,7 @@ interface ChatMessage {
   message: string;
   timestamp: Date;
   isAI?: boolean;
-  isUriTomo?: string;
+  isUriTomo?: boolean;
 }
 
 interface MeetingChatProps {
