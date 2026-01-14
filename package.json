@@ -3,17 +3,12 @@
   "private": true,
   "version": "0.0.1",
   "type": "module",
-  "main": "dist-electron/main.js",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build && electron-builder",
-    "preview": "vite preview"
+    "build": "vite build"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
-    "@livekit/components-react": "^2.9.17",
-    "@livekit/components-styles": "^1.2.0",
     "@mui/icons-material": "7.3.5",
     "@mui/material": "7.3.5",
     "@popperjs/core": "2.11.8",
@@ -47,12 +42,8 @@
     "clsx": "2.1.1",
     "cmdk": "1.1.1",
     "date-fns": "3.6.0",
-    "dotenv": "^17.2.3",
-    "electron-store": "^8.1.0",
     "embla-carousel-react": "8.6.0",
     "input-otp": "1.4.2",
-    "livekit-client": "^2.17.0",
-    "livekit-server-sdk": "^2.15.0",
     "lucide-react": "0.487.0",
     "motion": "12.23.24",
     "next-themes": "0.4.6",
@@ -74,12 +65,8 @@
   "devDependencies": {
     "@tailwindcss/vite": "4.1.12",
     "@vitejs/plugin-react": "4.7.0",
-    "electron": "^28.3.3",
-    "electron-builder": "^24.13.3",
     "tailwindcss": "4.1.12",
-    "vite": "6.3.5",
-    "vite-plugin-electron": "^0.28.8",
-    "vite-plugin-electron-renderer": "^0.14.6"
+    "vite": "6.3.5"
   },
   "peerDependencies": {
     "react": "18.3.1",
