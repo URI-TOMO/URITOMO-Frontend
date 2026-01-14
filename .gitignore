@@ -1,0 +1,34 @@
+# 1. 의존성 패키지 (가장 중요: 용량 문제)
+node_modules/
+
+# 2. 빌드 결과물 (자동 생성되므로 불필요)
+dist/
+out/
+build/
+release/
+
+# 3. 환경 변수 및 보안 키 (절대 업로드 금지!)
+.env
+.env.local
+.env.*.local
+*.pem
+
+# 4. OS 시스템 파일 (맥/윈도우 찌꺼기 파일)
+.DS_Store
+Thumbs.db
+
+# 5. IDE 설정 (개인 설정 파일)
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 6. 로그 파일
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+
+# 7. Electron Builder 관련
+dist-electron/
+dist-builder/
