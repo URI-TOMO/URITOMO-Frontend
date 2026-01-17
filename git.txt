@@ -1,0 +1,20 @@
+1. ステージング (add)（. は「すべてのファイル」という意味です）
+変更したファイルを「保存候補」として箱に入れます。
+git add .
+
+2. コミット (commit)
+git commit -m "初めてのコミット"
+
+git push -u origin main
+
+
+作業を始める前
+git pull origin main  
+GitHubから最新コードを取り込む
+
+
+git add .変更ファイルをまとめる
+"git commit -m ""修正メモ""",変更を記録(セーブ)する
+作業終了時
+git push origin main
+GitHubへアップロードする
