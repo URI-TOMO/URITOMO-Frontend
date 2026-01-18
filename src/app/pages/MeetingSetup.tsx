@@ -16,14 +16,6 @@ import { Button } from '../components/ui/button';
 import { ProfileSettingsModal, SystemSettingsModal } from '../components/SettingsModals';
 import { toast } from 'sonner';
 
-declare global {
-  interface Window {
-    electron: {
-      invokeApi: (channel: string, data: any) => Promise<any>;
-    }
-  }
-}
-
 export function MeetingSetup() {
   const { id } = useParams();
   const navigate = useNavigate();
