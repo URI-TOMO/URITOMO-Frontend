@@ -24,7 +24,8 @@
     /* Paths */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "motion/react": ["./node_modules/framer-motion"]
     }
   },
   "include": ["src"],
