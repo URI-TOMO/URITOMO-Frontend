@@ -5,11 +5,10 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { 
   Video, VideoOff, Mic, MicOff, PhoneOff, Users, Settings, Bot,
   MessageSquare, Languages, Pin, ChevronRight, ChevronLeft,
-  MonitorUp, Paperclip, Smile, AlertTriangle, Clock, Send,
-  Image as ImageIcon
+  MonitorUp, Paperclip, Smile, AlertTriangle, Clock, Send
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
-import { ProfileSettingsModal } from '../components/SettingsModals';
+import { ProfileSettingsModal, SystemSettingsModal } from '../components/SettingsModals';
 import { toast } from 'sonner';
 // LiveKit imports
 import {
@@ -33,6 +32,7 @@ const ensureMediaPermission = async () => {
   }
 };
 
+// --- Types ---
 interface Participant {
   id: string;
   name: string;
@@ -69,6 +69,7 @@ interface TermExplanation {
 
 type SidebarTab = 'translation' | 'chat' | 'members';
 
+// --- Content Component ---
 function ActiveMeetingContent({ 
   meetingId, 
   currentUserProp,
@@ -92,25 +93,27 @@ function ActiveMeetingContent({
   const [isMicOn, setIsMicOn] = useState(initialSettings?.isMicOn ?? true);
   const [isVideoOn, setIsVideoOn] = useState(initialSettings?.isVideoOn ?? true);
 
-  // --- Real Device State ---
+  // Device List State
   const [mics, setMics] = useState<MediaDeviceInfo[]>([]);
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
   const [speakers, setSpeakers] = useState<MediaDeviceInfo[]>([]);
+  
+  // Selected Device IDs
   const [selectedMicId, setSelectedMicId] = useState(initialDevices?.audioInputId || '');
   const [selectedCameraId, setSelectedCameraId] = useState(initialDevices?.videoInputId || '');
   const [selectedSpeakerId, setSelectedSpeakerId] = useState(initialDevices?.audioOutputId || '');
 
-  // --- UI State ---
+  // UI State
   const [showSettings, setShowSettings] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showEndMeetingConfirm, setShowEndMeetingConfirm] = useState(false);
+  
   const [activeTab, setActiveTab] = useState<SidebarTab>('translation');
   const [chatInput, setChatInput] = useState('');
   const [showStickerPicker, setShowStickerPicker] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [duration, setDuration] = useState(0);
   
-  // Data State
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [translationLogs, setTranslationLogs] = useState<TranslationLog[]>([]);
   const [termExplanations, setTermExplanations] = useState<TermExplanation[]>([]);
@@ -118,8 +121,9 @@ function ActiveMeetingContent({
   const [meetingTitle] = useState('日韓プロジェクト会議');
   const [startTime] = useState(new Date());
 
-  // Profile Settings
+  // Profile Settings State
   const [showProfileSettings, setShowProfileSettings] = useState(false);
+  const [showSystemSettings, setShowSystemSettings] = useState(false); 
   const [userName, setUserName] = useState('ユーザー');
   const [userEmail, setUserEmail] = useState('');
   const [userAvatar, setUserAvatar] = useState('');
@@ -129,59 +133,38 @@ function ActiveMeetingContent({
   const [editedAvatarType, setEditedAvatarType] = useState<'emoji' | 'image' | 'none'>('none');
   const [systemLanguage, setSystemLanguage] = useState<'ja' | 'ko' | 'en'>('ja');
 
-  // --- Device Sync Logic (修正版) ---
+  // --- Device Sync Logic ---
   useEffect(() => {
-    // 設定画面が開かれた時、または初回マウント時にデバイスを同期
+    if (!showSettings) return;
+
     const syncDevices = async () => {
       await ensureMediaPermission();
-      
-      try {
-        const list = await navigator.mediaDevices.enumerateDevices();
-        const micList = list.filter(d => d.kind === 'audioinput');
-        const camList = list.filter(d => d.kind === 'videoinput');
-        const spkList = list.filter(d => d.kind === 'audiooutput');
 
-        setMics(micList);
-        setCameras(camList);
-        setSpeakers(spkList);
+      const list = await navigator.mediaDevices.enumerateDevices();
+      const micList = list.filter(d => d.kind === 'audioinput');
+      const camList = list.filter(d => d.kind === 'videoinput');
+      const spkList = list.filter(d => d.kind === 'audiooutput');
 
-        // 選択状態の自動補正（空白防止）
-        // 1. LiveKitのアクティブデバイス 2. 現在のState 3. リストの先頭 の順で決定
-        if (room) {
-          let targetMic = room.getActiveDevice('audioinput') || selectedMicId;
-          let targetCam = room.getActiveDevice('videoinput') || selectedCameraId;
-          let targetSpk = room.getActiveDevice('audiooutput') || selectedSpeakerId;
+      setMics(micList);
+      setCameras(camList);
+      setSpeakers(spkList);
 
-          // リスト内に存在するか確認し、なければ先頭へフォールバック
-          if (micList.length > 0) {
-             const exists = micList.some(d => d.deviceId === targetMic);
-             if (!exists || !targetMic) targetMic = micList[0].deviceId;
-          }
-          if (camList.length > 0) {
-             const exists = camList.some(d => d.deviceId === targetCam);
-             if (!exists || !targetCam) targetCam = camList[0].deviceId;
-          }
-          if (spkList.length > 0) {
-             const exists = spkList.some(d => d.deviceId === targetSpk);
-             if (!exists || !targetSpk) targetSpk = spkList[0].deviceId;
-          }
-
-          if (targetMic) setSelectedMicId(targetMic);
-          if (targetCam) setSelectedCameraId(targetCam);
-          if (targetSpk) setSelectedSpeakerId(targetSpk);
-        }
-      } catch (e) {
-        console.error("Device sync error:", e);
+      // StateのIDがリストにない場合、強制的に先頭を選択
+      if (micList.length && !micList.some(d => d.deviceId === selectedMicId)) {
+        setSelectedMicId(micList[0].deviceId);
+      }
+      if (camList.length && !camList.some(d => d.deviceId === selectedCameraId)) {
+        setSelectedCameraId(camList[0].deviceId);
+      }
+      if (spkList.length && !spkList.some(d => d.deviceId === selectedSpeakerId)) {
+        setSelectedSpeakerId(spkList[0].deviceId);
       }
     };
 
-    if (showSettings || room) {
-      syncDevices();
-    }
-
+    syncDevices();
     navigator.mediaDevices.addEventListener('devicechange', syncDevices);
     return () => navigator.mediaDevices.removeEventListener('devicechange', syncDevices);
-  }, [showSettings, room]); 
+  }, [showSettings, selectedMicId, selectedCameraId, selectedSpeakerId]);
 
   // --- Handlers ---
   const handleDeviceChange = async (kind: MediaDeviceKind, id: string) => {
@@ -191,7 +174,7 @@ function ActiveMeetingContent({
       if (kind === 'audioinput') setSelectedMicId(id);
       if (kind === 'videoinput') setSelectedCameraId(id);
       if (kind === 'audiooutput') setSelectedSpeakerId(id);
-      // toast.success('デバイスを変更しました'); // 頻繁に出ると邪魔なのでコメントアウト可
+      toast.success('デバイスを変更しました');
     } catch (e) {
       console.error(`Failed to switch ${kind}:`, e);
       toast.error('切り替えに失敗しました');
@@ -210,8 +193,34 @@ function ActiveMeetingContent({
     if (localParticipant) await localParticipant.setCameraEnabled(newState);
   };
 
-  // --- Dummy Data Setup ---
+  // --- Initial Data ---
   useEffect(() => {
+    const loadProfile = () => {
+      const savedUser = localStorage.getItem('uri-tomo-user');
+      const savedProfile = localStorage.getItem('uri-tomo-user-profile');
+      const savedLanguage = localStorage.getItem('uri-tomo-system-language');
+
+      if (savedProfile) {
+        try {
+          const profile = JSON.parse(savedProfile);
+          setUserName(profile.name || 'ユーザー');
+          setUserEmail(profile.email || savedUser || '');
+          setUserAvatar(profile.avatar || '');
+          setAvatarType(profile.avatarType || 'none');
+        } catch (e) {
+          if (savedUser) {
+            setUserEmail(savedUser);
+            setUserName(savedUser.split('@')[0]);
+          }
+        }
+      } else if (savedUser) {
+        setUserEmail(savedUser);
+        setUserName(savedUser.split('@')[0]);
+      }
+      if (savedLanguage) setSystemLanguage(savedLanguage as 'ja' | 'ko' | 'en');
+    };
+    loadProfile();
+
     setParticipants([
       { id: '1', name: 'User A', isVideoOn: true, isMuted: false, language: 'ja' },
       { id: '2', name: 'User B', isVideoOn: true, isMuted: false, language: 'ko' },
@@ -244,10 +253,28 @@ function ActiveMeetingContent({
   const handleEndMeeting = () => setShowEndMeetingConfirm(true);
   const confirmEndMeeting = () => navigate(`/minutes/${meetingId || Date.now()}`);
 
+  const handleFileAttach = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*,.pdf,.doc,.docx,.txt';
+    input.onchange = (e: any) => {
+      const file = e.target.files[0];
+      if (file) {
+        setChatMessages([...chatMessages, { id: Date.now().toString(), sender: currentUser.name, message: `📎 ${file.name}`, timestamp: new Date() }]);
+      }
+    };
+    input.click();
+  };
+
+  const handleStickerSelect = (sticker: string) => {
+    setChatMessages([...chatMessages, { id: Date.now().toString(), sender: currentUser.name, message: sticker, timestamp: new Date() }]);
+    setShowStickerPicker(false);
+  };
+
   return (
-    <div className="min-h-screen w-full flex flex-col bg-gray-900">
+    <div className="h-screen w-full flex flex-col bg-gray-900">
       {/* Header */}
-      <header className="bg-gray-800 border-b border-gray-700 px-6 py-3 flex items-center justify-between">
+      <header className="bg-gray-800 border-b border-gray-700 px-6 py-3 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-4">
           <h1 className="text-white font-bold text-lg">{meetingTitle}</h1>
           <div className="flex items-center gap-2 px-3 py-1 bg-red-600 rounded-full">
@@ -258,18 +285,18 @@ function ActiveMeetingContent({
       </header>
 
       {/* Main Area */}
-      <div className="flex-1 overflow-hidden relative">
+      <div className="flex-1 overflow-hidden relative min-h-0">
         {!isSidebarOpen && (
           <motion.button initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} onClick={() => setIsSidebarOpen(true)} className="absolute top-4 right-4 z-10 bg-yellow-400 hover:bg-yellow-500 text-gray-900 px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 font-semibold transition-all">
             <Bot className="h-5 w-5" /><span>Uri-Tomoを開く</span><ChevronLeft className="h-5 w-5" />
           </motion.button>
         )}
 
-        <PanelGroup direction="horizontal">
+        <PanelGroup direction="horizontal" className="h-full">
           {/* Video Grid */}
           <Panel defaultSize={isSidebarOpen ? 70 : 100} minSize={50}>
-            <div className="h-full p-4 bg-gray-900">
-              <div className="h-full grid grid-cols-2 gap-4">
+            <div className="h-full p-4 bg-gray-900 flex flex-col">
+              <div className="flex-1 grid grid-cols-2 gap-4 min-h-0">
                 {/* Uri-Tomo Bot */}
                 <motion.div className="relative bg-gradient-to-br from-yellow-900 to-amber-900 rounded-xl overflow-hidden border-2 border-yellow-400">
                   <div className="absolute top-3 right-3 z-10 bg-yellow-400 p-2 rounded-lg shadow-lg"><Pin className="h-4 w-4 text-gray-900" /></div>
@@ -284,15 +311,11 @@ function ActiveMeetingContent({
                   </div>
                 </motion.div>
 
-                {/* Local User (with Mirror Effect) */}
+                {/* Local User (Mirror Effect) */}
                 <motion.div className="relative bg-gray-800 rounded-xl overflow-hidden border-2 border-gray-700 hover:border-yellow-400 transition-all">
                   <div className="absolute inset-0 flex items-center justify-center">
                     {localTrack?.publication?.isSubscribed ? (
-                      <VideoTrack 
-                        trackRef={localTrack} 
-                        className="w-full h-full object-cover" 
-                        style={{ transform: 'scaleX(-1)' }} 
-                      />
+                      <VideoTrack trackRef={localTrack} className="w-full h-full object-cover" style={{ transform: 'scaleX(-1)' }} />
                     ) : (
                       <div className="w-full h-full bg-gray-800 flex items-center justify-center"><div className="w-24 h-24 rounded-full bg-gradient-to-br from-yellow-400 to-amber-400 flex items-center justify-center text-white font-bold text-3xl">{currentUser?.name?.charAt(0) || '?'}</div></div>
                     )}
@@ -324,14 +347,15 @@ function ActiveMeetingContent({
               <Panel defaultSize={30} minSize={25} maxSize={50}>
                 <div className="h-full bg-white flex flex-col">
                   {/* Uri-Tomo Header */}
-                  <div className="bg-gradient-to-r from-yellow-400 to-amber-400 px-4 py-3">
+                  <div className="bg-gradient-to-r from-yellow-400 to-amber-400 px-4 py-3 flex-shrink-0">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2"><div className="w-8 h-8 bg-white rounded-full flex items-center justify-center"><Bot className="h-5 w-5 text-yellow-600" /></div><div><h3 className="text-white font-bold text-sm">Uri-Tomo</h3><p className="text-yellow-100 text-xs">AI翻訳アシスタント</p></div></div>
                       <button onClick={() => setIsSidebarOpen(false)} className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"><ChevronRight className="h-5 w-5" /></button>
                     </div>
                   </div>
-                  {/* Description */}
-                  <div className="border-b border-gray-200 bg-white max-h-48 overflow-y-auto">
+                  
+                  {/* Description Section (Fixed height) */}
+                  <div className="border-b border-gray-200 bg-white max-h-48 overflow-y-auto flex-shrink-0">
                     <div className="sticky top-0 bg-white px-4 pt-4 pb-2 border-b border-gray-100"><div className="flex items-center gap-2"><Bot className="h-4 w-4 text-yellow-600" /><h4 className="font-bold text-gray-900 text-sm">Description</h4><span className="text-xs text-gray-500">({termExplanations.length}件の用語解説)</span></div></div>
                     <div className="p-4">
                       {termExplanations.map((term, index) => (
@@ -342,30 +366,39 @@ function ActiveMeetingContent({
                       ))}
                     </div>
                   </div>
-                  {/* Tabs */}
-                  <div className="flex border-b border-gray-200 bg-gray-50">
-                    <button onClick={() => setActiveTab('translation')} className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors ${activeTab === 'translation' ? 'bg-white text-yellow-600 border-b-2 border-yellow-400' : 'text-gray-600'}`}><div className="flex items-center justify-center gap-2"><Languages className="h-4 w-4" /><span>Translation</span></div></button>
-                    <button onClick={() => setActiveTab('chat')} className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors ${activeTab === 'chat' ? 'bg-white text-yellow-600 border-b-2 border-yellow-400' : 'text-gray-600'}`}><div className="flex items-center justify-center gap-2"><MessageSquare className="h-4 w-4" /><span>チャット</span></div></button>
-                    <button onClick={() => setActiveTab('members')} className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors ${activeTab === 'members' ? 'bg-white text-yellow-600 border-b-2 border-yellow-400' : 'text-gray-600'}`}><div className="flex items-center justify-center gap-2"><Users className="h-4 w-4" /><span>メンバー</span></div></button>
+
+                  {/* Tabs (Fixed height) */}
+                  <div className="flex border-b border-gray-200 bg-gray-50 flex-shrink-0">
+                    <button onClick={() => setActiveTab('translation')} className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors ${activeTab === 'translation' ? 'bg-white text-yellow-600 border-b-2 border-yellow-400' : 'text-gray-600'}`}>Translation</button>
+                    <button onClick={() => setActiveTab('chat')} className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors ${activeTab === 'chat' ? 'bg-white text-yellow-600 border-b-2 border-yellow-400' : 'text-gray-600'}`}>Chat</button>
+                    <button onClick={() => setActiveTab('members')} className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors ${activeTab === 'members' ? 'bg-white text-yellow-600 border-b-2 border-yellow-400' : 'text-gray-600'}`}>Members</button>
                   </div>
-                  {/* Content */}
-                  <div className="flex-1 overflow-hidden">
+
+                  {/* Tab Content (Flexible height with min-h-0) */}
+                  <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+                    {/* Chat Tab */}
                     {activeTab === 'chat' && (
                       <div className="h-full flex flex-col">
-                        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                          {chatMessages.length === 0 ? <p className="text-center text-sm text-gray-500 mt-4">まだメッセージがありません</p> : chatMessages.map(msg => (
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
+                          {chatMessages.length === 0 ? <p className="text-center text-sm text-gray-500 mt-4">メッセージなし</p> : chatMessages.map(msg => (
                             <div key={msg.id} className={`flex ${msg.sender === currentUser.name ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[80%] rounded-lg p-3 ${msg.sender === currentUser.name ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}><p className="text-sm">{msg.message}</p></div></div>
                           ))}
                         </div>
-                        <div className="border-t p-4 flex gap-2">
+                        <div className="border-t border-gray-200 p-4 flex gap-2 flex-shrink-0">
                           <button onClick={() => setShowStickerPicker(!showStickerPicker)} className="p-2 rounded hover:bg-gray-100"><Smile className="h-5 w-5" /></button>
                           <input value={chatInput} onChange={e => setChatInput(e.target.value)} className="flex-1 border rounded px-3 py-2 text-sm" placeholder="メッセージ..." />
                           <Button onClick={handleSendChat}><Send className="h-4 w-4" /></Button>
                         </div>
+                        {showStickerPicker && (
+                          <div className="p-4 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+                            <div className="grid grid-cols-5 gap-2">{['👍', '👏', '😊', '❤️', '🎉', '✨', '💡', '🔥', '👌', '🙌'].map((s) => (<button key={s} onClick={() => handleStickerSelect(s)} className="text-2xl p-2 hover:bg-gray-200 rounded">{s}</button>))}</div>
+                          </div>
+                        )}
                       </div>
                     )}
+                    {/* Translation Tab */}
                     {activeTab === 'translation' && (
-                      <div className="h-full overflow-y-auto p-4 space-y-4">
+                      <div className="h-full overflow-y-auto p-4 space-y-4 min-h-0">
                         {translationLogs.map(log => (
                           <div key={log.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
                             <div className="flex justify-between mb-2"><span className="font-bold text-sm">{log.speaker}</span><span className="text-xs text-gray-500">{log.timestamp.toLocaleTimeString()}</span></div>
@@ -374,8 +407,9 @@ function ActiveMeetingContent({
                         ))}
                       </div>
                     )}
+                    {/* Members Tab */}
                     {activeTab === 'members' && (
-                      <div className="h-full overflow-y-auto p-4 space-y-2">
+                      <div className="h-full overflow-y-auto p-4 space-y-2 min-h-0">
                         {participants.map(p => <div key={p.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded"><span className="text-sm">{p.name}</span></div>)}
                       </div>
                     )}
@@ -387,16 +421,16 @@ function ActiveMeetingContent({
         </PanelGroup>
       </div>
 
-      <footer className="bg-gray-800 border-t border-gray-700 px-6 py-4">
+      <footer className="bg-gray-800 border-t border-gray-700 px-6 py-4 flex-shrink-0">
         <div className="flex justify-center gap-4">
-          <Button onClick={toggleMic} className={`rounded-full w-12 h-12 ${isMicOn ? 'bg-gray-700 hover:bg-gray-600' : 'bg-red-600 hover:bg-red-700'}`}>{isMicOn ? <Mic className="h-5 w-5 text-white" /> : <MicOff className="h-5 w-5 text-white" />}</Button>
-          <Button onClick={toggleVideo} className={`rounded-full w-12 h-12 ${isVideoOn ? 'bg-gray-700 hover:bg-gray-600' : 'bg-red-600 hover:bg-red-700'}`}>{isVideoOn ? <Video className="h-5 w-5 text-white" /> : <VideoOff className="h-5 w-5 text-white" />}</Button>
+          <Button onClick={toggleMic} className={`rounded-full w-12 h-12 ${isMicOn ? 'bg-gray-700' : 'bg-red-600'}`}>{isMicOn ? <Mic className="h-5 w-5 text-white" /> : <MicOff className="h-5 w-5 text-white" />}</Button>
+          <Button onClick={toggleVideo} className={`rounded-full w-12 h-12 ${isVideoOn ? 'bg-gray-700' : 'bg-red-600'}`}>{isVideoOn ? <Video className="h-5 w-5 text-white" /> : <VideoOff className="h-5 w-5 text-white" />}</Button>
           <Button onClick={handleEndMeeting} className="rounded-full w-12 h-12 bg-red-600"><PhoneOff className="h-5 w-5 text-white" /></Button>
-          <Button onClick={() => setShowSettings(true)} className="rounded-full w-12 h-12 bg-gray-700 hover:bg-gray-600"><Settings className="h-5 w-5 text-white" /></Button>
+          <Button onClick={() => setShowSettings(true)} className="rounded-full w-12 h-12 bg-gray-700"><Settings className="h-5 w-5 text-white" /></Button>
         </div>
       </footer>
 
-      {/* Settings Modal (Fully Restored & Functional) */}
+      {/* Settings Modal (Fixed) */}
       {showSettings && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center" onClick={() => setShowSettings(false)}>
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-2xl w-full max-w-2xl mx-4 max-h-[80vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
@@ -413,18 +447,17 @@ function ActiveMeetingContent({
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">マイク</label>
                     <select 
-                      value={selectedMicId} 
+                      value={selectedMicId || mics[0]?.deviceId || ''} 
                       onChange={(e) => handleDeviceChange('audioinput', e.target.value)} 
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 text-sm bg-white"
                     >
-                      {mics.length === 0 && <option value="" disabled>デバイスが見つかりません</option>}
                       {mics.map(m => <option key={m.deviceId} value={m.deviceId}>{m.label || `Microphone ${m.deviceId.slice(0,5)}...`}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">スピーカー</label>
                     <select 
-                      value={selectedSpeakerId} 
+                      value={selectedSpeakerId || speakers[0]?.deviceId || ''} 
                       onChange={(e) => handleDeviceChange('audiooutput', e.target.value)} 
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 text-sm bg-white"
                       disabled={speakers.length === 0}
@@ -433,10 +466,7 @@ function ActiveMeetingContent({
                       {speakers.map(s => <option key={s.deviceId} value={s.deviceId}>{s.label || `Speaker ${s.deviceId.slice(0,5)}...`}</option>)}
                     </select>
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div><p className="text-sm font-semibold text-gray-900">ノイズキャンセル</p><p className="text-xs text-gray-500">バックグラウンドノイズを低減</p></div>
-                    <input type="checkbox" className="toggle" defaultChecked />
-                  </div>
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><p className="text-sm font-semibold text-gray-900">ノイズキャンセル</p><p className="text-xs text-gray-500">バックグラウンドノイズを低減</p></div><input type="checkbox" className="toggle" defaultChecked /></div>
                 </div>
               </div>
 
@@ -447,26 +477,18 @@ function ActiveMeetingContent({
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">カメラ</label>
                     <select 
-                      value={selectedCameraId} 
+                      value={selectedCameraId || cameras[0]?.deviceId || ''} 
                       onChange={(e) => handleDeviceChange('videoinput', e.target.value)} 
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 text-sm bg-white"
                     >
-                      {cameras.length === 0 && <option value="" disabled>デバイスが見つかりません</option>}
                       {cameras.map(c => <option key={c.deviceId} value={c.deviceId}>{c.label || `Camera ${c.deviceId.slice(0,5)}...`}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">解像度</label>
-                    <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 text-sm bg-white">
-                      <option>HD (720p)</option>
-                      <option>Full HD (1080p)</option>
-                      <option>4K (2160p)</option>
-                    </select>
+                    <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 text-sm bg-white"><option>HD (720p)</option><option>Full HD (1080p)</option><option>4K (2160p)</option></select>
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div><p className="text-sm font-semibold text-gray-900">ビューティーフィルター</p><p className="text-xs text-gray-500">映像を自動補正</p></div>
-                    <input type="checkbox" className="toggle" />
-                  </div>
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><p className="text-sm font-semibold text-gray-900">ビューティーフィルター</p><p className="text-xs text-gray-500">映像を自動補正</p></div><input type="checkbox" className="toggle" /></div>
                 </div>
               </div>
 
@@ -474,21 +496,11 @@ function ActiveMeetingContent({
               <div className="space-y-4">
                 <div className="flex items-center gap-2 border-b border-gray-200 pb-2"><Languages className="h-5 w-5 text-yellow-600" /><h3 className="font-bold text-gray-900">Uri-Tomo AI翻訳設定</h3></div>
                 <div className="grid gap-4">
-                  <div className="flex items-center justify-between p-3 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-200">
-                    <div><p className="text-sm font-semibold text-gray-900">リアルタイム翻訳</p><p className="text-xs text-gray-500">日韓自動翻訳を有効化</p></div>
-                    <input type="checkbox" className="toggle" defaultChecked />
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-200">
-                    <div><p className="text-sm font-semibold text-gray-900">用語解説 (Description)</p><p className="text-xs text-gray-500">専門用語を自動で解説</p></div>
-                    <input type="checkbox" className="toggle" defaultChecked />
-                  </div>
+                  <div className="flex items-center justify-between p-3 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-200"><div><p className="text-sm font-semibold text-gray-900">リアルタイム翻訳</p><p className="text-xs text-gray-500">日韓自動翻訳を有効化</p></div><input type="checkbox" className="toggle" defaultChecked /></div>
+                  <div className="flex items-center justify-between p-3 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-200"><div><p className="text-sm font-semibold text-gray-900">用語解説 (Description)</p><p className="text-xs text-gray-500">専門用語を自動で解説</p></div><input type="checkbox" className="toggle" defaultChecked /></div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">翻訳言語ペア</label>
-                    <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 text-sm bg-white">
-                      <option>🇯🇵 日本語 ⇄ 🇰🇷 韓国語</option>
-                      <option>🇯🇵 日本語 ⇄ 🇺🇸 英語</option>
-                      <option>🇰🇷 韓国語 ⇄ 🇺🇸 英語</option>
-                    </select>
+                    <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 text-sm bg-white"><option>🇯🇵 日本語 ⇄ 🇰🇷 韓国語</option><option>🇯🇵 日本語 ⇄ 🇺🇸 英語</option><option>🇰🇷 韓国語 ⇄ 🇺🇸 英語</option></select>
                   </div>
                 </div>
               </div>
@@ -497,14 +509,8 @@ function ActiveMeetingContent({
               <div className="space-y-4">
                 <div className="flex items-center gap-2 border-b border-gray-200 pb-2"><Settings className="h-5 w-5 text-gray-700" /><h3 className="font-bold text-gray-900">一般設定</h3></div>
                 <div className="grid gap-4">
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div><p className="text-sm font-semibold text-gray-900">会議の自動録画</p><p className="text-xs text-gray-500">開始時に自動で記録</p></div>
-                    <input type="checkbox" className="toggle" defaultChecked />
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div><p className="text-sm font-semibold text-gray-900">通知音</p><p className="text-xs text-gray-500">参加者の入退室を通知</p></div>
-                    <input type="checkbox" className="toggle" defaultChecked />
-                  </div>
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><p className="text-sm font-semibold text-gray-900">会議の自動録画</p><p className="text-xs text-gray-500">開始時に自動で記録</p></div><input type="checkbox" className="toggle" defaultChecked /></div>
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><p className="text-sm font-semibold text-gray-900">通知音</p><p className="text-xs text-gray-500">参加者の入退室を通知</p></div><input type="checkbox" className="toggle" defaultChecked /></div>
                 </div>
               </div>
             </div>
@@ -526,6 +532,7 @@ function ActiveMeetingContent({
         </motion.div>
       )}
 
+      {/* Profile Settings Modal */}
       <ProfileSettingsModal
         isOpen={showProfileSettings}
         onClose={() => setShowProfileSettings(false)}
@@ -540,7 +547,7 @@ function ActiveMeetingContent({
         onNameChange={setEditedUserName}
         onAvatarChange={setEditedUserAvatar}
         onAvatarTypeChange={setEditedAvatarType}
-        onAvatarImageUpload={() => {}}
+        onAvatarImageUpload={(e) => {}}
         onSave={() => setShowProfileSettings(false)}
       />
     </div>
@@ -556,12 +563,12 @@ export function ActiveMeeting() {
 
   useEffect(() => {
     if (!livekitToken || !livekitUrl) {
-      toast.error('接続情報がありません。設定画面に戻ります。');
+      toast.error('接続情報がありません。');
       navigate(`/meeting-setup/${id}`);
     }
   }, [livekitToken, livekitUrl, navigate, id]);
 
-  if (!livekitToken || !livekitUrl) return <div className="h-screen bg-gray-900 flex items-center justify-center text-white">Connecting...</div>;
+  if (!livekitToken || !livekitUrl) return null;
 
   return (
     <LiveKitRoom
@@ -571,7 +578,6 @@ export function ActiveMeeting() {
       audio={initialMicOn ? { deviceId: audioDeviceId } : false}
       onDisconnected={() => navigate('/')}
       className="h-screen w-full bg-gray-900"
-      style={{ height: '100vh' }}
     >
       <ActiveMeetingContent 
         meetingId={id || ''} 
