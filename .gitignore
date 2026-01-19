@@ -32,3 +32,10 @@ logs/
 # 7. Electron Builder 관련
 dist-electron/
 dist-builder/
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Generated config files (TS -> JS)
+vite.config.js
+vite.config.d.ts
