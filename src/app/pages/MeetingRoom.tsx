@@ -37,14 +37,6 @@ import { Card } from '../components/ui/card';
 import { ProfileSettingsModal, SystemSettingsModal } from '../components/SettingsModals';
 import { toast } from 'sonner';
 
-declare global {
-  interface Window {
-    electron: {
-      invokeApi: (channel: string, data: any) => Promise<any>;
-    }
-  }
-}
-
 interface ChatMessage {
   id: string;
   sender: string;

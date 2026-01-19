@@ -1,20 +1,18 @@
-import { defineConfig } from 'vite'
-import path from 'path'
-import tailwindcss from '@tailwindcss/vite'
-import react from '@vitejs/plugin-react'
-import electron from 'vite-plugin-electron/simple'
+import path from "path"
+import react from "@vitejs/plugin-react"
+import { defineConfig } from "vite"
+import electron from "vite-plugin-electron/simple"
 
 export default defineConfig(({ command }) => ({
   base: command === 'serve' ? '/' : './',
   plugins: [
     react(),
-    tailwindcss(),
     electron({
       main: {
         entry: 'electron/main.ts',
         vite: {
           build: {
-            outDir: 'dist-electron', 
+            outDir: 'dist-electron',
             rollupOptions: {
               external: ['electron']
             }
@@ -29,7 +27,8 @@ export default defineConfig(({ command }) => ({
   ],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      "@": path.resolve(__dirname, "./src"),
+      "motion/react": "framer-motion",
     },
   },
 }))
