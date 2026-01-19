@@ -1,14 +1,30 @@
 import { ipcRenderer, contextBridge } from 'electron'
 
-// 렌더러에서 사용할 수 있는 API 노출
+// --- 既存のElectron API ---
 contextBridge.exposeInMainWorld('electron', {
-  // 예: IPC 메시지 전송
   sendSignal: (channel: string, data: any) => ipcRenderer.send(channel, data),
-  // 예: API 호출 (번역, TTS 등)
   invokeApi: (channel: string, data: any) => ipcRenderer.invoke(channel, data),
-  // 예: 메인 프로세스로부터의 이벤트 수신
   on: (channel: string, callback: (event: any, ...args: any[]) => void) => {
     ipcRenderer.on(channel, callback)
     return () => ipcRenderer.removeAllListeners(channel)
+  }
+})
+
+// --- 画面共有用 API (これを追加！) ---
+contextBridge.exposeInMainWorld('ipcRenderer', {
+  // メインプロセスからの「選択画面出して！」を受け取る
+  onOpenScreenPicker: (callback: (sources: any[]) => void) => {
+    console.log('[Preload] Setup open-screen-picker listener');
+    ipcRenderer.removeAllListeners('open-screen-picker');
+    ipcRenderer.on('open-screen-picker', (_event, sources) => {
+      console.log('[Preload] Received sources:', sources);
+      callback(sources);
+    });
+  },
+  
+  // ユーザーが選んだIDをメインプロセスに送る
+  selectScreenSource: (id: string | null) => {
+    console.log('[Preload] Selecting source:', id);
+    ipcRenderer.invoke('select-screen-source', id);
   }
 })

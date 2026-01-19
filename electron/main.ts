@@ -1,20 +1,16 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, desktopCapturer, session } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { AccessToken } from 'livekit-server-sdk'
 import dotenv from 'dotenv'
 
-// .env 파일 로드
 dotenv.config()
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true'
-
-// 렌더러 프로세스(React)가 사용할 HTML 파일 경로
 process.env.APP_ROOT = path.join(__dirname, '..')
 
-// Vite 개발 서버 URL 및 빌드 결과물 경로 정의
 export const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL
 export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron')
 export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
@@ -23,80 +19,108 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 
 let win: BrowserWindow | null
 
+// ★重要: コールバックを保存する変数は関数の外に置く
+let screenShareCallback: ((result: any) => void) | null = null; 
+
 function createWindow() {
   win = new BrowserWindow({
     width: 1280,
     height: 800,
     minWidth: 800,
     minHeight: 600,
-    // icon: path.join(process.env.VITE_PUBLIC, 'icon.png'), // 아이콘 파일이 있다면
     webPreferences: {
-      preload: path.join(__dirname, 'preload.mjs'),
-      contextIsolation: true,
-      nodeIntegration: false, // 보안을 위해 false 유지
+      preload: path.join(__dirname, 'preload.mjs'), // ビルド後のパスに注意
+      contextIsolation: true, // trueでないとpreloadが動きません
+      nodeIntegration: false,
     },
   })
 
-  // 개발 모드에서는 Vite 서버 URL 로드, 프로덕션에서는 빌드된 index.html 로드
+  // ▼▼▼ 画面共有リクエストのハンドリング ▼▼▼
+  win.webContents.session.setDisplayMediaRequestHandler((request, callback) => {
+    console.log('[Main] DisplayMediaRequest received');
+    
+    desktopCapturer.getSources({ types: ['screen', 'window'] }).then((sources) => {
+      console.log('[Main] Found sources:', sources.length);
+      
+      // コールバックをグローバル変数に保存（Reactからの選択待ち）
+      screenShareCallback = callback;
+
+      // React側に送るデータを作成
+      const availableSources = sources.map(source => ({
+        id: source.id,
+        name: source.name,
+        thumbnail: source.thumbnail.toDataURL()
+      }));
+
+      // Reactへ「選択画面を出して」と送信
+      win?.webContents.send('open-screen-picker', availableSources);
+    }).catch((err) => {
+      console.error('[Main] Screen capture error:', err);
+      callback(null as any);
+    });
+  });
+  // ▲▲▲ ここまで ▲▲▲
+
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL)
-    win.webContents.openDevTools() // 개발자 도구 열기
+    win.webContents.openDevTools()
   } else {
     win.loadFile(path.join(RENDERER_DIST, 'index.html'))
   }
 }
 
-// 앱이 준비되면 창 생성
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
+  if (process.platform !== 'darwin') app.quit()
 })
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow()
-  }
+  if (BrowserWindow.getAllWindows().length === 0) createWindow()
 })
 
 app.whenReady().then(() => {
   createWindow()
 
-  // ▼ LiveKit 토큰 발급 핸들러 추가
+  // LiveKitトークン発行
   ipcMain.handle('get-livekit-token', async (_, { roomName, participantName }) => {
     try {
       const apiKey = process.env.LIVEKIT_API_KEY
       const apiSecret = process.env.LIVEKIT_API_SECRET
       const wsUrl = process.env.LIVEKIT_URL
-
-      if (!apiKey || !apiSecret || !wsUrl) {
-        throw new Error('LiveKit 환경 변수가 설정되지 않았습니다.')
-      }
-
-      const at = new AccessToken(apiKey, apiSecret, {
-        identity: participantName,
-        // 사용자 이름과 별개로 고유 ID가 필요하다면 여기서 처리 가능
-      })
-
-      at.addGrant({
-        roomJoin: true,
-        room: roomName,
-        canPublish: true,
-        canSubscribe: true,
-      })
-
-      const token = await at.toJwt()
-      return { token, url: wsUrl }
+      if (!apiKey || !apiSecret || !wsUrl) throw new Error('LiveKit env missing')
+      const at = new AccessToken(apiKey, apiSecret, { identity: participantName })
+      at.addGrant({ roomJoin: true, room: roomName, canPublish: true, canSubscribe: true })
+      return { token: await at.toJwt(), url: wsUrl }
     } catch (error) {
-      console.error('Token generation failed:', error)
-      throw error
+      console.error(error); throw error;
     }
   })
-})
 
-// 추후 LiveKit, OpenAI API 통신을 위한 IPC 핸들러 예시
-ipcMain.handle('api-request', async (event, data) => {
-  console.log('Renderer requested:', data)
-  // 여기에 Python 스크립트 실행이나 API 호출 로직 추가 예정
-  return { success: true }
+  // ▼▼▼ Reactからの選択結果を受け取る処理 ▼▼▼
+  ipcMain.handle('select-screen-source', async (_, sourceId: string | null) => {
+    console.log('[Main] Received selection:', sourceId);
+    
+    if (!screenShareCallback) {
+      console.warn('[Main] No callback waiting');
+      return;
+    }
+
+    if (sourceId) {
+      // 指定されたIDのソースを再取得して渡す
+      const sources = await desktopCapturer.getSources({ types: ['screen', 'window'] });
+      const selectedSource = sources.find(s => s.id === sourceId);
+      
+      if (selectedSource) {
+        console.log('[Main] Starting share with:', selectedSource.name);
+        // audio: false にして安定性を優先
+        screenShareCallback({ video: selectedSource as any, audio: false }); 
+      } else {
+        console.error('[Main] Source not found');
+        screenShareCallback(null as any);
+      }
+    } else {
+      console.log('[Main] User cancelled');
+      screenShareCallback(null as any);
+    }
+    screenShareCallback = null; // リセット
+  });
 })
