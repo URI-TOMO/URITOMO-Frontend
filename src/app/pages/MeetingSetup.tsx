@@ -19,14 +19,6 @@ import { toast } from 'sonner';
 // 変更点: LiveKitクライアントからトラック作成関数をインポート
 import { createLocalVideoTrack, LocalVideoTrack } from 'livekit-client';
 
-declare global {
-  interface Window {
-    electron: {
-      invokeApi: (channel: string, data: any) => Promise<any>;
-    }
-  }
-}
-
 export function MeetingSetup() {
   const { id } = useParams();
   const navigate = useNavigate();
