@@ -66,12 +66,11 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.1.12",
-    "vite-plugin-mkcert": "^1.17.9",
     "@types/node": "^20.11.17",
     "@types/react": "^18.2.55",
     "@types/react-dom": "^18.2.19",
     "@vitejs/plugin-react": "^4.2.1",
-    "autoprefixer": "^10.4.17",
+    "autoprefixer": "^10.4.23",
     "electron": "^28.2.1",
     "electron-builder": "^24.9.1",
     "eslint": "^8.56.0",
@@ -82,7 +81,8 @@
     "typescript": "^5.2.2",
     "vite": "^5.1.0",
     "vite-plugin-electron": "^0.28.2",
-    "vite-plugin-electron-renderer": "^0.14.5"
+    "vite-plugin-electron-renderer": "^0.14.5",
+    "vite-plugin-mkcert": "^1.17.9"
   },
   "build": {
     "appId": "com.uritomo.meeting",
