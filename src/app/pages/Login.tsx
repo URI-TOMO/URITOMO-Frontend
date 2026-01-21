@@ -5,6 +5,9 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Card } from '../components/ui/card';
+import { authApi } from '../api/auth';
+import { toast } from 'sonner';
+import { useGoogleLogin } from '@react-oauth/google';
 
 interface LoginProps {
   onLogin: (email: string) => void;
@@ -25,15 +28,81 @@ export function Login({ onLogin }: LoginProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // 백엔드에 일반 로그인 API가 없으므로 알림 처리
+    toast.info("現在、Googleログインのみサポートしています。\n(Currently only Google Login is supported)");
+    
+    /* // 기존 코드
     if (email) {
       onLogin(email);
     }
+    */
   };
 
-  const handleSocialLogin = (provider: string) => {
-    // Social login simulation
-    onLogin(`${provider}-user@example.com`);
+  const handleSocialLogin = async (provider: string) => {
+    // 1. 구글 외의 제공자는 미구현 처리
+    if (provider !== 'google') {
+      toast.info(`${provider} ログインは準備中です。\n(${provider} login is coming soon)`);
+      return;
+    }
+
+    try {
+      // 2. [중요] 실제로는 여기서 Google SDK(또는 라이브러리)를 통해 ID Token을 받아와야 합니다.
+      // 현재는 테스트를 위해 가상의 토큰이나, 개발자 도구에서 하드코딩된 토큰을 사용한다고 가정합니다.
+      // 실제 구현 시: const { token } = await googleLogin(); 
+      const googleIdToken = "GOOGLE_ID_TOKEN_FROM_SDK"; // ★ 여기에 실제 구글 토큰이 들어와야 함
+
+      console.log('백엔드로 로그인 요청 전송 중...');
+      
+      // 3. 백엔드 API 호출 (auth.ts 사용)
+      const response = await authApi.loginWithGoogle(googleIdToken);
+      
+      console.log('로그인 성공:', response);
+
+      // 4. 받아온 토큰과 유저 정보를 로컬 스토리지에 저장 (새로고침 시 유지용)
+      localStorage.setItem('uri-tomo-token', response.access_token);
+      localStorage.setItem('uri-tomo-user-profile', JSON.stringify({
+        name: response.user.display_name,
+        email: response.user.email,
+        avatar: response.user.picture,
+        locale: response.user.locale
+      }));
+
+      // 5. 성공 메시지 및 상위 컴포넌트에 로그인 알림
+      toast.success(`${response.user.display_name}さん、ようこそ！`);
+      onLogin(response.user.email);
+
+    } catch (error) {
+      console.error('Login Failed:', error);
+      // 에러 메시지는 authApi 내부 인터셉터에서 toast로 보여주므로 여기서는 로깅만 함
+    }
   };
+
+  // Google Login Hook 설정
+  const googleLogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      // 구글에서 성공적으로 토큰을 받아오면 실행됨
+      // tokenResponse.access_token 또는 id_token을 사용
+      console.log("Google Token Received:", tokenResponse);
+      
+      // API 호출 로직
+      try {
+        const response = await authApi.loginWithGoogle(tokenResponse.access_token);
+        localStorage.setItem('uri-tomo-token', response.access_token);
+        localStorage.setItem('uri-tomo-user-profile', JSON.stringify({
+          name: response.user.display_name,
+          email: response.user.email,
+          avatar: response.user.picture,
+          locale: response.user.locale
+        }));
+        toast.success(`${response.user.display_name}さん、ようこそ！`);
+        onLogin(response.user.email);
+      } catch (e) {
+        console.error('Google Login Failed:', e);
+      }
+    },
+    onError: () => toast.error('Google Login Failed'),
+  });
 
   const translations = {
     ja: {
@@ -299,7 +368,7 @@ export function Login({ onLogin }: LoginProps) {
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => handleSocialLogin('google')}
+                  onClick={() => googleLogin()} // handleSocialLogin('google')}
                   className="flex items-center justify-center px-4 py-3 border-2 border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition-all"
                 >
                   <svg className="h-6 w-6" viewBox="0 0 24 24">
