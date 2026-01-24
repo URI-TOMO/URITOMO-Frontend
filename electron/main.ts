@@ -1,4 +1,7 @@
-import { app, BrowserWindow, ipcMain, desktopCapturer, session } from 'electron'
+import { createRequire } from 'node:module'
+const require = createRequire(import.meta.url)
+const { app, BrowserWindow, ipcMain, desktopCapturer, session } = require('electron')
+import type { BrowserWindow as BrowserWindowType } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { AccessToken } from 'livekit-server-sdk'
@@ -17,10 +20,10 @@ export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
 
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
 
-let win: BrowserWindow | null
+let win: BrowserWindowType | null
 
 // ★重要: コールバックを保存する変数は関数の外に置く
-let screenShareCallback: ((result: any) => void) | null = null; 
+let screenShareCallback: ((result: any) => void) | null = null;
 
 function createWindow() {
   win = new BrowserWindow({
@@ -38,17 +41,17 @@ function createWindow() {
   // ▼▼▼ 画面共有リクエストのハンドリング ▼▼▼
   win.webContents.session.setDisplayMediaRequestHandler((request, callback) => {
     console.log('[Main] DisplayMediaRequest received');
-    
+
     desktopCapturer.getSources({ types: ['screen', 'window'] }).then((sources) => {
       console.log('[Main] Found sources:', sources.length);
-      
+
       // ★修正: ここで不要なウィンドウをフィルタリング
-      const cleanSources = sources.filter(source => 
+      const cleanSources = sources.filter(source =>
         source.name !== 'PDRSTYLEAGENT' && // 特定のアプリを除外
         source.name !== 'Overlay' &&       // NVIDIAなどのオーバーレイも除外すると良い
         source.id !== 'screen:0:0'         // 必要であればダミー画面も除外
       );
-      
+
       // コールバックをグローバル変数に保存（Reactからの選択待ち）
       screenShareCallback = callback;
 
@@ -104,7 +107,7 @@ app.whenReady().then(() => {
   // ▼▼▼ Reactからの選択結果を受け取る処理 ▼▼▼
   ipcMain.handle('select-screen-source', async (_, sourceId: string | null) => {
     console.log('[Main] Received selection:', sourceId);
-    
+
     if (!screenShareCallback) {
       console.warn('[Main] No callback waiting');
       return;
@@ -114,11 +117,11 @@ app.whenReady().then(() => {
       // 指定されたIDのソースを再取得して渡す
       const sources = await desktopCapturer.getSources({ types: ['screen', 'window'] });
       const selectedSource = sources.find(s => s.id === sourceId);
-      
+
       if (selectedSource) {
         console.log('[Main] Starting share with:', selectedSource.name);
         // audio: false にして安定性を優先
-        screenShareCallback({ video: selectedSource as any, audio: false }); 
+        screenShareCallback({ video: selectedSource as any, audio: false });
       } else {
         console.error('[Main] Source not found');
         screenShareCallback(null as any);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
@@ -6,7 +6,7 @@ import {
   Video, VideoOff, Mic, MicOff, PhoneOff, Users, Settings, Bot,
   MessageSquare, Languages, Pin, ChevronRight, ChevronLeft,
   MonitorUp, Paperclip, Smile, AlertTriangle, Clock, Send, Monitor, X,
-  User as UserIcon
+  User as UserIcon, Wifi, WifiOff
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { ProfileSettingsModal, SystemSettingsModal } from '../components/SettingsModals';
@@ -68,12 +68,16 @@ function ActiveMeetingContent({
   meetingId,
   currentUserProp,
   devices: initialDevices,
-  initialSettings
+  initialSettings,
+  wsSessionId,
+  wsToken
 }: {
   meetingId: string,
   currentUserProp: any,
   devices?: { audioInputId?: string; videoInputId?: string; audioOutputId?: string },
-  initialSettings?: { isMicOn: boolean, isVideoOn: boolean }
+  initialSettings?: { isMicOn: boolean, isVideoOn: boolean },
+  wsSessionId?: string,  // WebSocket session ID (optional)
+  wsToken?: string       // WebSocket auth token (optional)
 }) {
   const navigate = useNavigate();
   const room = useRoomContext();
@@ -122,6 +126,11 @@ function ActiveMeetingContent({
   const [termExplanations, setTermExplanations] = useState<TermExplanation[]>([]);
   const [meetingTitle] = useState('日韓プロジェクト会議');
 
+  // --- WebSocket Chat State ---
+  const ws = useRef<WebSocket | null>(null);
+  const [wsConnected, setWsConnected] = useState(false);
+  const BACKEND_WS_URL = import.meta.env.VITE_BACKEND_WS_URL || 'ws://localhost:8000';
+
   // Profile Settings State
   const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [showSystemSettings, setShowSystemSettings] = useState(false);
@@ -135,6 +144,90 @@ function ActiveMeetingContent({
   const [systemLanguage, setSystemLanguage] = useState<'ja' | 'ko' | 'en'>('ja');
   // 会議開始時間を記録
   const [startTime] = useState(new Date());
+
+  // --- WebSocket Connection Logic ---
+  useEffect(() => {
+    if (!wsSessionId) {
+      console.log('[ActiveMeeting] No WebSocket session ID, using local-only mode');
+      return;
+    }
+
+    let wsUrl = `${BACKEND_WS_URL}/meeting/${wsSessionId}`;
+    if (wsToken) {
+      wsUrl += `?token=${wsToken}`;
+    }
+
+    console.log('[ActiveMeeting] Connecting to WebSocket:', wsUrl);
+
+    try {
+      ws.current = new WebSocket(wsUrl);
+
+      ws.current.onopen = () => {
+        console.log('✅ ActiveMeeting WebSocket Connected');
+        setWsConnected(true);
+        toast.success('チャットサーバーに接続しました');
+      };
+
+      ws.current.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          console.log('📩 WS Message:', msg);
+
+          if (msg.type === 'chat' && msg.data) {
+            const newMsg: ChatMessage = {
+              id: msg.data.id,
+              sender: msg.data.display_name || 'Unknown',
+              message: msg.data.text,
+              timestamp: new Date(msg.data.created_at)
+            };
+            setChatMessages(prev => {
+              // Avoid duplicates
+              if (prev.some(m => m.id === newMsg.id)) {
+                return prev;
+              }
+              return [...prev, newMsg];
+            });
+          } else if (msg.type === 'session_connected') {
+            console.log('🎉 Session connected:', msg.data);
+          } else if (msg.type === 'error') {
+            console.error('❌ WS Error:', msg.message);
+            toast.error(`チャットエラー: ${msg.message}`);
+          }
+        } catch (e) {
+          console.error('Failed to parse WS message:', e);
+        }
+      };
+
+      ws.current.onclose = (event) => {
+        console.log('❌ WebSocket Closed:', event.code, event.reason);
+        setWsConnected(false);
+        if (event.code !== 1000) {
+          toast.error('チャットサーバーから切断されました');
+        }
+      };
+
+      ws.current.onerror = (err) => {
+        console.error('WebSocket error:', err);
+        setWsConnected(false);
+      };
+
+      // Ping to keep connection alive
+      const pingInterval = setInterval(() => {
+        if (ws.current?.readyState === WebSocket.OPEN) {
+          ws.current.send(JSON.stringify({ type: 'ping' }));
+        }
+      }, 30000);
+
+      return () => {
+        clearInterval(pingInterval);
+        if (ws.current) {
+          ws.current.close();
+        }
+      };
+    } catch (e) {
+      console.error('Failed to create WebSocket:', e);
+    }
+  }, [wsSessionId, wsToken, BACKEND_WS_URL]);
 
   // --- Logic 1: Screen Share IPC Listener ---
   useEffect(() => {
@@ -254,10 +347,26 @@ function ActiveMeetingContent({
   };
 
   const handleSendChat = () => {
-    if (chatInput.trim()) {
-      setChatMessages([...chatMessages, { id: Date.now().toString(), sender: currentUser.name, message: chatInput, timestamp: new Date() }]);
-      setChatInput('');
+    if (!chatInput.trim()) return;
+
+    if (ws.current?.readyState === WebSocket.OPEN) {
+      // WebSocket接続がある場合はサーバーに送信
+      ws.current.send(JSON.stringify({
+        type: 'chat',
+        text: chatInput,
+        lang: 'ja'
+      }));
+      // サーバーからブロードキャストされたメッセージで表示されるため、ローカルには追加しない
+    } else {
+      // WebSocket接続がない場合はローカルにのみ追加
+      setChatMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        sender: currentUser.name,
+        message: chatInput,
+        timestamp: new Date()
+      }]);
     }
+    setChatInput('');
   };
 
   const handleFileAttach = () => {
@@ -730,6 +839,25 @@ function ActiveMeetingContent({
                     {/* Chat Tab */}
                     {activeTab === 'chat' && (
                       <div className="h-full flex flex-col">
+                        {/* WebSocket Connection Status */}
+                        {wsSessionId && (
+                          <div className={`px-4 py-2 flex items-center gap-2 text-xs border-b ${wsConnected
+                              ? 'bg-green-50 text-green-700 border-green-200'
+                              : 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                            }`}>
+                            {wsConnected ? (
+                              <>
+                                <Wifi className="h-3 w-3" />
+                                <span>リアルタイム同期中</span>
+                              </>
+                            ) : (
+                              <>
+                                <WifiOff className="h-3 w-3" />
+                                <span>接続中...</span>
+                              </>
+                            )}
+                          </div>
+                        )}
                         <div className="flex-1 overflow-y-auto p-4 space-y-3">
                           {chatMessages.length === 0 ? (
                             <div className="text-center py-8">
@@ -1281,7 +1409,19 @@ export function ActiveMeeting() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { livekitToken, livekitUrl, participantName, initialMicOn, initialVideoOn, audioDeviceId, videoDeviceId, audioOutputDeviceId } = location.state || {};
+  const {
+    livekitToken,
+    livekitUrl,
+    participantName,
+    initialMicOn,
+    initialVideoOn,
+    audioDeviceId,
+    videoDeviceId,
+    audioOutputDeviceId,
+    // WebSocket params (optional)
+    wsSessionId,
+    wsToken
+  } = location.state || {};
 
   useEffect(() => {
     if (!livekitToken || !livekitUrl) {
@@ -1306,6 +1446,8 @@ export function ActiveMeeting() {
         currentUserProp={{ name: participantName || 'Me', language: 'ja' }}
         devices={{ audioInputId: audioDeviceId, videoInputId: videoDeviceId, audioOutputId: audioOutputDeviceId }}
         initialSettings={{ isMicOn: initialMicOn, isVideoOn: initialVideoOn }}
+        wsSessionId={wsSessionId}
+        wsToken={wsToken}
       />
       <RoomAudioRenderer />
     </LiveKitRoom>
