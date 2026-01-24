@@ -4,7 +4,7 @@ import { motion } from 'motion/react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import {
   Video, VideoOff, Mic, MicOff, PhoneOff, Users, Settings, Bot,
-  MessageSquare, Languages, Pin, ChevronRight, ChevronLeft,
+  MessageSquare, Languages, Pin, ChevronRight, ChevronLeft, FileText,
   MonitorUp, Paperclip, Smile, AlertTriangle, Clock, Send, Monitor, X,
   User as UserIcon, Wifi, WifiOff
 } from 'lucide-react';
@@ -61,7 +61,19 @@ interface TermExplanation {
   timestamp: Date;
 }
 
-type SidebarTab = 'translation' | 'chat' | 'members';
+// Summary related types
+interface SummaryData {
+  summarization: {
+    main_point: string;
+    task: string;
+    decided: string;
+  };
+  meeting_date: string;
+  past_time: string;
+  meeting_member: number | string;
+}
+
+type SidebarTab = 'translation' | 'chat' | 'members' | 'summary';
 
 // --- Content Component ---
 function ActiveMeetingContent({
@@ -147,12 +159,15 @@ function ActiveMeetingContent({
 
   // --- WebSocket Connection Logic ---
   useEffect(() => {
-    if (!wsSessionId) {
-      console.log('[ActiveMeeting] No WebSocket session ID, using local-only mode');
+    // 修正: wsSessionIdがなくても、ルームID (meetingId) を使って接続を試みる
+    const targetSessionId = wsSessionId || meetingId;
+
+    if (!targetSessionId) {
+      console.log('[ActiveMeeting] No WebSocket session ID or Room ID, using local-only mode');
       return;
     }
 
-    let wsUrl = `${BACKEND_WS_URL}/meeting/${wsSessionId}`;
+    let wsUrl = `${BACKEND_WS_URL}/meeting/${targetSessionId}`;
     if (wsToken) {
       wsUrl += `?token=${wsToken}`;
     }
@@ -227,7 +242,7 @@ function ActiveMeetingContent({
     } catch (e) {
       console.error('Failed to create WebSocket:', e);
     }
-  }, [wsSessionId, wsToken, BACKEND_WS_URL]);
+  }, [wsSessionId, wsToken, BACKEND_WS_URL, meetingId]);
 
   // --- Logic 1: Screen Share IPC Listener ---
   useEffect(() => {
@@ -273,6 +288,70 @@ function ActiveMeetingContent({
     navigator.mediaDevices.addEventListener('devicechange', syncDevices);
     return () => navigator.mediaDevices.removeEventListener('devicechange', syncDevices);
   }, [showSettings, room]);
+
+  const [summaryData, setSummaryData] = useState<SummaryData | null>(null);
+  const [isSummaryLoading, setIsSummaryLoading] = useState(false);
+
+  // 要約取得APIの呼び出し
+  const fetchSummary = async () => {
+    // 修正: チャットの保存先IDと合わせる
+    const targetSessionId = wsSessionId || meetingId;
+
+    if (!targetSessionId || !wsToken) {
+      toast.error('認証情報が不足しています');
+      return;
+    }
+
+    try {
+      setIsSummaryLoading(true);
+      // 環境変数がない場合は、現在のブラウザのホスト名を使ってバックエンドのURLを推測する
+      let backendUrl = 'http://localhost:8000';
+      if (import.meta.env.VITE_BACKEND_WS_URL) {
+        // ws://.../api/v1 のようなパスが含まれている場合に対応するため、URLオブジェクトでパース
+        const rawUrl = import.meta.env.VITE_BACKEND_WS_URL.replace('ws://', 'http://').replace('wss://', 'https://');
+        try {
+          const urlObj = new URL(rawUrl);
+          backendUrl = urlObj.origin + urlObj.pathname.replace(/\/$/, ''); // 末尾スラッシュ削除
+        } catch (e) {
+          backendUrl = rawUrl.replace(/\/$/, '');
+        }
+      } else {
+        const currentHost = window.location.hostname;
+        backendUrl = `http://${currentHost}:8000`;
+      }
+
+      const requestUrl = `${backendUrl}/summarization/${targetSessionId}`; // バックエンドのルート設定に合わせる
+      console.log('🚀 Fetching summary in ActiveMeeting from:', requestUrl);
+
+      const response = await fetch(requestUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${wsToken}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setSummaryData(data.summary);
+      toast.success('要約を生成しました');
+
+      // 翻訳ログも更新（もし含まれていれば）
+      if (data.translation_log && Array.isArray(data.translation_log)) {
+        // 必要に応じて既存のtranslationLogsとマージしたり置き換えたりする処理
+        // setTranslationLogs(...)
+      }
+
+    } catch (error) {
+      console.error('Failed to fetch summary:', error);
+      toast.error('要約の生成に失敗しました');
+    } finally {
+      setIsSummaryLoading(false);
+    }
+  };
 
   // --- Handlers ---
   const handleDeviceChange = async (kind: MediaDeviceKind, id: string) => {
@@ -414,7 +493,7 @@ function ActiveMeetingContent({
 
     // 会議の包括的なレコードを作成
     const meetingRecord = {
-      id: Date.now().toString(),
+      id: wsSessionId || meetingId || Date.now().toString(),
       title: meetingTitle,
       startTime: startTime.toISOString(),
       endTime: endTime.toISOString(),
@@ -472,7 +551,13 @@ function ActiveMeetingContent({
     const updatedMeetings = [...savedMeetings, meetingRecord];
     localStorage.setItem('meetings', JSON.stringify(updatedMeetings));
     // 実際の議事録保存処理などがここに入ります
-    navigate(`/minutes/${meetingRecord.id}`);
+
+    navigate(`/minutes/${meetingRecord.id}`, {
+      state: {
+        token: wsToken,
+        meetingRecord: meetingRecord // 念のためローカルで作ったデータも渡しておく
+      }
+    });
   };
 
   // --- Initial Data ---
@@ -737,11 +822,111 @@ function ActiveMeetingContent({
                         <span>メンバー</span>
                       </div>
                     </button>
+                    <button
+                      onClick={() => setActiveTab('summary')}
+                      className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors ${activeTab === 'summary'
+                        ? 'bg-white text-yellow-600 border-b-2 border-yellow-400'
+                        : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        <span>要約</span>
+                      </div>
+                    </button>
                   </div>
 
                   {/* Tab Content */}
                   <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-                    {/* Translation Tab */}
+                    {/* Summary Tab */}
+                    {activeTab === 'summary' && (
+                      <div className="h-full overflow-y-auto p-4">
+                        <div className="mb-6">
+                          <h3 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
+                            <Bot className="h-5 w-5 text-yellow-600" />
+                            AI 会議要約
+                          </h3>
+                          <p className="text-sm text-gray-600 mb-4">
+                            Uri-Tomo AIが会議の内容をリアルタイムで分析・要約します。
+                          </p>
+
+                          {!summaryData ? (
+                            <div className="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                              <FileText className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                              <p className="text-gray-500 text-sm mb-4">まだ要約が生成されていません</p>
+                              <Button
+                                onClick={fetchSummary}
+                                disabled={isSummaryLoading}
+                                className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-bold"
+                              >
+                                {isSummaryLoading ? (
+                                  <><span className="loading loading-spinner loading-xs mr-2"></span>生成中...</>
+                                ) : (
+                                  <><Bot className="h-4 w-4 mr-2" />要約を生成する</>
+                                )}
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                              {/* Metadata Card */}
+                              <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                  <div>
+                                    <p className="text-gray-500 text-xs">会議日</p>
+                                    <p className="font-semibold text-gray-900">{summaryData.meeting_date}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-gray-500 text-xs">所要時間</p>
+                                    <p className="font-semibold text-gray-900">{summaryData.past_time}</p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Main Points */}
+                              <div className="bg-gradient-to-br from-yellow-50 to-amber-50 p-5 rounded-xl border border-yellow-200 shadow-sm">
+                                <h4 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+                                  <span className="text-xl">💡</span> 主要ポイント
+                                </h4>
+                                <div className="prose prose-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                                  {summaryData.summarization.main_point}
+                                </div>
+                              </div>
+
+                              {/* Decisions */}
+                              <div className="bg-white p-5 rounded-xl border-l-4 border-green-500 shadow-sm">
+                                <h4 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+                                  <span className="text-xl">✅</span> 決定事項
+                                </h4>
+                                <div className="prose prose-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                                  {summaryData.summarization.decided}
+                                </div>
+                              </div>
+
+                              {/* Tasks */}
+                              <div className="bg-white p-5 rounded-xl border-l-4 border-blue-500 shadow-sm">
+                                <h4 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+                                  <span className="text-xl">📋</span> ネクストアクション
+                                </h4>
+                                <div className="prose prose-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                                  {summaryData.summarization.task}
+                                </div>
+                              </div>
+
+                              <div className="flex justify-center pt-4">
+                                <Button
+                                  onClick={fetchSummary}
+                                  variant="outline"
+                                  disabled={isSummaryLoading}
+                                  className="text-gray-500 hover:text-gray-700"
+                                >
+                                  {isSummaryLoading ? '更新中...' : '情報を更新する'}
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                     {activeTab === 'translation' && (
                       <div className="h-full flex flex-col bg-gradient-to-b from-yellow-50 to-white">
                         {/* Scrollable Translation Log */}
@@ -842,8 +1027,8 @@ function ActiveMeetingContent({
                         {/* WebSocket Connection Status */}
                         {wsSessionId && (
                           <div className={`px-4 py-2 flex items-center gap-2 text-xs border-b ${wsConnected
-                              ? 'bg-green-50 text-green-700 border-green-200'
-                              : 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                            ? 'bg-green-50 text-green-700 border-green-200'
+                            : 'bg-yellow-50 text-yellow-700 border-yellow-200'
                             }`}>
                             {wsConnected ? (
                               <>

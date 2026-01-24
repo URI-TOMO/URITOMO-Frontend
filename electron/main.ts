@@ -35,6 +35,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.mjs'), // ビルド後のパスに注意
       contextIsolation: true, // trueでないとpreloadが動きません
       nodeIntegration: false,
+      webSecurity: false, // 開発中は無効化してCORS等の問題を回避
     },
   })
 
@@ -73,6 +74,8 @@ function createWindow() {
 
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL)
+    // 開発モード時は自動で開発者ツールを開く
+    win.webContents.openDevTools()
   } else {
     win.loadFile(path.join(RENDERER_DIST, 'index.html'))
   }
