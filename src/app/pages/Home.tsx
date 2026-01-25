@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, UserPlus, Globe, Edit3, Trash2, MessageCircle, MoreVertical, Mail, User, Bot, Settings, Plus, LogOut, Mic, Video, Monitor, Languages, Image as ImageIcon } from 'lucide-react';
+import { Users, UserPlus, Globe, Edit3, Trash2, MessageCircle, MoreVertical, Mail, User, Bot, Settings, Plus, LogOut, Mic, Video, Monitor, Languages, Image as ImageIcon, ChevronRight } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Button } from '../components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
@@ -10,6 +10,8 @@ import { PageTransition } from '../components/PageTransition';
 import { toast } from 'sonner';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
 import { ProfileSettingsModal, SystemSettingsModal } from '../components/SettingsModals';
+import { userApi } from '../api/user';
+import { MainDataResponse } from '../api/types';
 
 // Simple translation helper
 const t = (lang: 'ja' | 'ko' | 'en', key: string): string => {
@@ -58,6 +60,9 @@ const t = (lang: 'ja' | 'ko' | 'en', key: string): string => {
     removeAvatar: { ja: 'アバターを削除', ko: '아바타 제거', en: 'Remove Avatar' },
     useDefaultIcon: { ja: 'デフォルトアイコンを使用', ko: '기본 아이콘 사용', en: 'Use default icon' },
     selectEmoji: { ja: '絵文字を選択', ko: '이모지 선택', en: 'Select Emoji' },
+    joinedRooms: { ja: '参加したルーム', ko: '참가한 방', en: 'Joined Rooms' },
+    noRooms: { ja: 'ルームがありません', ko: '참가한 방이 없습니다', en: 'No rooms joined' },
+    join: { ja: '参加', ko: '참가', en: 'Join' },
   };
   return translations[key]?.[lang] || key;
 };
@@ -104,64 +109,72 @@ export function Home() {
   const [editedNickname, setEditedNickname] = useState('');
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
   const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Load rooms from localStorage
-    const savedRooms = JSON.parse(localStorage.getItem('uri-tomo-rooms') || '[]');
-    if (savedRooms.length === 0) {
-      // Initialize with default rooms
-      const defaultRooms: Room[] = [
-        { id: '1', name: 'あ' },
-        { id: '2', name: 'か' },
-        { id: '3', name: 'さ' },
-        { id: '4', name: 'た' },
-        { id: '5', name: 'な' },
-      ];
-      setRooms(defaultRooms);
-      localStorage.setItem('uri-tomo-rooms', JSON.stringify(defaultRooms));
-    } else {
-      setRooms(savedRooms);
-    }
-
-    // Load contacts
-    const savedContacts = JSON.parse(localStorage.getItem('uri-tomo-contacts') || '[]');
-    if (savedContacts.length === 0) {
-      const defaultContacts: Contact[] = [
-        { id: '1', name: '김민수', email: 'minsu.kim@example.com', status: 'online' },
-        { id: '2', name: '이지은', email: 'jieun.lee@example.com', status: 'online' },
-        { id: '3', name: '박준호', email: 'junho.park@example.com', status: 'online' },
-        { id: '4', name: '최서연', email: 'seoyeon.choi@example.com', status: 'online' },
-        { id: '5', name: '정우진', email: 'woojin.jung@example.com', status: 'online' },
-        { id: '6', name: '강나영', email: 'nayoung.kang@example.com', status: 'online' },
-      ];
-      setContacts(defaultContacts);
-      localStorage.setItem('uri-tomo-contacts', JSON.stringify(defaultContacts));
-    } else {
-      setContacts(savedContacts);
-    }
-
-    // Load user info
-    const savedUser = localStorage.getItem('uri-tomo-user');
-    const savedProfile = localStorage.getItem('uri-tomo-user-profile');
-    
-    if (savedProfile) {
+    const fetchMainData = async () => {
       try {
-        const profile = JSON.parse(savedProfile);
-        setUserName(profile.name || 'ユーザー');
-        setUserEmail(profile.email || savedUser || '');
-        setUserAvatar(profile.avatar || '');
-        setAvatarType(profile.avatarType || 'none');
-      } catch (e) {
-        // Fallback to old format
+        setIsLoading(true);
+        const data: MainDataResponse = await userApi.getMainData();
+
+        // 1. Update User Info
+        setUserName(data.user.display_name);
+        setUserEmail(data.user.email);
+
+        // 2. Update Rooms
+        const mappedRooms: Room[] = data.rooms.map(room => ({
+          id: room.id,
+          name: room.name
+        }));
+        setRooms(mappedRooms);
+
+        // 3. Update Contacts (Friends)
+        const mappedContacts: Contact[] = data.user_friends.map(friend => ({
+          id: friend.id,
+          name: friend.friend_name,
+          email: friend.email,
+          status: 'online', // Default to online or handle based on real status if available
+        }));
+        setContacts(mappedContacts);
+
+        // Update localStorage as a fallback/cache if needed
+        localStorage.setItem('uri-tomo-user', data.user.email);
+        const existingProfile = JSON.parse(localStorage.getItem('uri-tomo-user-profile') || '{}');
+        localStorage.setItem('uri-tomo-user-profile', JSON.stringify({
+          ...existingProfile,
+          name: data.user.display_name,
+          email: data.user.email,
+        }));
+        localStorage.setItem('uri-tomo-rooms', JSON.stringify(mappedRooms));
+        localStorage.setItem('uri-tomo-contacts', JSON.stringify(mappedContacts));
+
+        // Dispatch events for other components to update
+        window.dispatchEvent(new Event('profile-updated'));
+        window.dispatchEvent(new Event('rooms-updated'));
+        window.dispatchEvent(new Event('contacts-updated'));
+
+      } catch (error) {
+        console.error('Failed to fetch main data:', error);
+        toast.error('데이터를 불러오는데 실패했습니다.');
+
+        // Fallback to localStorage on error
+        const savedRooms = JSON.parse(localStorage.getItem('uri-tomo-rooms') || '[]');
+        if (savedRooms.length > 0) setRooms(savedRooms);
+
+        const savedContacts = JSON.parse(localStorage.getItem('uri-tomo-contacts') || '[]');
+        if (savedContacts.length > 0) setContacts(savedContacts);
+
+        const savedUser = localStorage.getItem('uri-tomo-user');
         if (savedUser) {
           setUserEmail(savedUser);
           setUserName(savedUser.split('@')[0]);
         }
+      } finally {
+        setIsLoading(false);
       }
-    } else if (savedUser) {
-      setUserEmail(savedUser);
-      setUserName(savedUser.split('@')[0]);
-    }
+    };
+
+    fetchMainData();
 
     // Load system language
     const savedLanguage = localStorage.getItem('uri-tomo-language') as 'ja' | 'ko' | 'en' | null;
@@ -221,7 +234,7 @@ export function Home() {
     const updatedRooms = [...rooms, newRoom];
     setRooms(updatedRooms);
     localStorage.setItem('uri-tomo-rooms', JSON.stringify(updatedRooms));
-    
+
     setIsRoomDialogOpen(false);
     setNewRoomName('');
   };
@@ -254,41 +267,15 @@ export function Home() {
 
     setIsCheckingEmail(true);
 
-    // Simulate API call to check if email exists
-    // In real app, this would be an actual API call
-    setTimeout(() => {
-      // List of existing emails for simulation
-      const existingEmails = [
-        'minsu.kim@example.com',
-        'jieun.lee@example.com',
-        'junho.park@example.com',
-        'seoyeon.choi@example.com',
-        'woojin.jung@example.com',
-        'nayoung.kang@example.com',
-        'test@example.com',
-        'user@example.com'
-      ];
+    // In real app, this would be an actual API call like userApi.addContact(newContactEmail)
+    toast.info('友達追加機能は現在バックエンドの実装を待機中です。', {
+      description: '将来的には、このメールアドレスにリクエストが送信されます。',
+      duration: 4000,
+    });
 
-      const emailExists = existingEmails.includes(newContactEmail.toLowerCase());
-
-      if (emailExists) {
-        // Email exists - send friend request
-        toast.success('友達追加リクエストを送信しました！', {
-          description: `${newContactEmail} に友リクエストを送信しました。`,
-          duration: 4000,
-        });
-        setShowAddContact(false);
-        setNewContactEmail('');
-      } else {
-        // Email doesn't exist
-        toast.error('ユーザーが存在しません', {
-          description: `${newContactEmail} は登録されていません。メールアドレスを確認してください。`,
-          duration: 4000,
-        });
-      }
-
-      setIsCheckingEmail(false);
-    }, 1000);
+    setShowAddContact(false);
+    setNewContactEmail('');
+    setIsCheckingEmail(false);
   };
 
   const handleEditNickname = (contact: Contact) => {
@@ -299,7 +286,7 @@ export function Home() {
 
   const handleSaveNickname = () => {
     if (selectedContact) {
-      const updatedContacts = contacts.map(contact => 
+      const updatedContacts = contacts.map(contact =>
         contact.id === selectedContact.id ? { ...contact, nickname: editedNickname } : contact
       );
       setContacts(updatedContacts);
@@ -322,63 +309,77 @@ export function Home() {
     });
   };
 
-  return (
-    <main className="flex-1 overflow-y-auto">
-      {/* Contacts Section - Expanded */}
-      <div className="h-full bg-white flex flex-col">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Users className="h-6 w-6 text-gray-700" />
-            <h3 className="font-bold text-gray-900 text-lg">{t(systemLanguage, 'contacts')}</h3>
-            <span className="text-sm text-gray-500">({contacts.length})</span>
-          </div>
-          <button 
-            onClick={() => setShowAddContact(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-yellow-400 to-amber-400 hover:from-yellow-500 hover:to-amber-500 text-white rounded-lg font-semibold transition-all shadow-md hover:shadow-lg"
-          >
-            <UserPlus className="h-5 w-5" />
-            <span>{t(systemLanguage, 'add')}</span>
-          </button>
+  if (isLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-white">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-500 font-medium">데이터를 불러오는 중...</p>
         </div>
+      </div>
+    );
+  }
 
-        {/* Contacts List */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="p-6 space-y-0">
-            {contacts.map((contact, index) => (
-              <motion.div
-                key={contact.id}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.3, delay: index * 0.05 }}
-                className="p-4 hover:bg-yellow-50 hover:shadow-lg hover:scale-[1.02] transition-all duration-200 cursor-pointer group flex items-center gap-4 border-b border-gray-100 last:border-b-0 rounded-lg"
-                onClick={() => handleStartChat(contact.id)}
-              >
-                {/* User Icon */}
-                <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0">
-                  <User className="h-6 w-6 text-yellow-600" />
-                </div>
+  return (
+    <main className="flex-1 overflow-hidden flex flex-col bg-white">
+      {/* Header */}
+      <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Users className="h-6 w-6 text-gray-700" />
+          <h3 className="font-bold text-gray-900 text-lg uppercase tracking-tight">{t(systemLanguage, 'contacts')}</h3>
+          <span className="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{contacts.length}</span>
+        </div>
+        <button
+          onClick={() => setShowAddContact(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-yellow-400 to-amber-400 hover:from-yellow-500 hover:to-amber-500 text-white rounded-lg font-semibold transition-all shadow-md hover:shadow-lg active:scale-95"
+        >
+          <UserPlus className="h-5 w-5" />
+          <span>{t(systemLanguage, 'add')}</span>
+        </button>
+      </div>
 
-                {/* Name and Email */}
-                <div className="flex-1 min-w-0">
+      {/* Contacts List */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-6 space-y-3">
+          {contacts.map((contact, index) => (
+            <motion.div
+              key={contact.id}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3, delay: index * 0.05 }}
+              className="p-4 bg-white border border-gray-100 rounded-xl hover:border-yellow-200 hover:shadow-lg transition-all cursor-pointer group flex items-center gap-4"
+              onClick={() => handleStartChat(contact.id)}
+            >
+              {/* User Icon */}
+              <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                <User className="h-6 w-6 text-yellow-600" />
+              </div>
+
+              {/* Name and Email */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
                   <p className="font-semibold text-gray-900 text-base truncate">
                     {contact.name}
-                    {contact.nickname && (
-                      <span className="text-yellow-600 ml-1">({contact.nickname})</span>
-                    )}
                   </p>
-                  <p className="text-sm text-gray-500 truncate">{contact.email}</p>
+                  {contact.nickname && (
+                    <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">
+                      {contact.nickname}
+                    </span>
+                  )}
                 </div>
+                <p className="text-xs text-gray-500 truncate">{contact.email}</p>
+              </div>
 
+              <div className="flex items-center gap-2">
                 {/* Message Icon */}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     handleStartChat(contact.id);
                   }}
-                  className="p-2 bg-green-50 hover:bg-green-100 rounded-lg transition-all hover:scale-110"
+                  className="p-2.5 bg-gray-50 hover:bg-green-50 text-gray-400 hover:text-green-500 rounded-xl transition-all"
                 >
-                  <MessageCircle className="h-5 w-5 text-green-500" />
+                  <MessageCircle className="h-5 w-5" />
                 </button>
 
                 {/* More Menu */}
@@ -387,11 +388,11 @@ export function Home() {
                     onClick={(e) => {
                       e.stopPropagation();
                     }}
-                    className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all hover:scale-110"
+                    className="p-2.5 bg-gray-50 hover:bg-gray-100 text-gray-400 hover:text-gray-600 rounded-xl transition-all"
                   >
-                    <MoreVertical className="h-5 w-5 text-gray-600" />
+                    <MoreVertical className="h-5 w-5" />
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56">
+                  <DropdownMenuContent className="w-56" align="end">
                     <DropdownMenuItem
                       onClick={(e) => {
                         e.stopPropagation();
@@ -407,16 +408,16 @@ export function Home() {
                         setContactToDelete(contact);
                         setShowDeleteAlert(true);
                       }}
-                      className="text-red-600 focus:text-red-600"
+                      className="text-red-600 focus:text-red-600 focus:bg-red-50"
                     >
                       <Trash2 className="mr-2 h-4 w-4" />
                       {t(systemLanguage, 'delete')}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </motion.div>
-            ))}
-          </div>
+              </div>
+            </motion.div>
+          ))}
         </div>
       </div>
 

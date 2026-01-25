@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { 
+import {
   Video, VideoOff, Mic, MicOff, PhoneOff, Users, Settings, Bot,
   MessageSquare, Languages, Pin, ChevronRight, ChevronLeft,
   MonitorUp, Paperclip, Smile, AlertTriangle, Clock, Send, Monitor, X
@@ -70,13 +70,13 @@ interface TermExplanation {
 type SidebarTab = 'translation' | 'chat' | 'members';
 
 // --- Content Component ---
-function ActiveMeetingContent({ 
-  meetingId, 
+function ActiveMeetingContent({
+  meetingId,
   currentUserProp,
-  devices: initialDevices, 
+  devices: initialDevices,
   initialSettings
-}: { 
-  meetingId: string, 
+}: {
+  meetingId: string,
   currentUserProp: any,
   devices?: { audioInputId?: string; videoInputId?: string; audioOutputId?: string },
   initialSettings?: { isMicOn: boolean, isVideoOn: boolean }
@@ -90,7 +90,7 @@ function ActiveMeetingContent({
   const localCameraTrack = tracks.find(t => t.participant.isLocal && t.source === Track.Source.Camera);
   const localScreenTrack = tracks.find(t => t.participant.isLocal && t.source === Track.Source.ScreenShare);
   const remoteTracks = tracks.filter(t => !t.participant.isLocal);
-  
+
   const [currentUser] = useState(currentUserProp);
   const [isMicOn, setIsMicOn] = useState(initialSettings?.isMicOn ?? true);
   const [isVideoOn, setIsVideoOn] = useState(initialSettings?.isVideoOn ?? true);
@@ -112,12 +112,12 @@ function ActiveMeetingContent({
   const [showSettings, setShowSettings] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showEndMeetingConfirm, setShowEndMeetingConfirm] = useState(false);
-  
+
   const [activeTab, setActiveTab] = useState<SidebarTab>('translation');
   const [chatInput, setChatInput] = useState('');
   const [showStickerPicker, setShowStickerPicker] = useState(false);
   const [duration, setDuration] = useState(0);
-  
+
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [translationLogs, setTranslationLogs] = useState<TranslationLog[]>([]);
   const [termExplanations, setTermExplanations] = useState<TermExplanation[]>([]);
@@ -263,7 +263,7 @@ function ActiveMeetingContent({
 
   // ★ここに追加: 会議終了ハンドラ
   const handleEndMeeting = () => setShowEndMeetingConfirm(true);
-  
+
   // ★ここに追加: 会議終了確定ハンドラ
   const confirmEndMeeting = () => {
     // 実際の議事録保存処理などがここに入ります
@@ -280,7 +280,7 @@ function ActiveMeetingContent({
         try {
           const p = JSON.parse(savedProfile);
           setUserName(p.name); setUserEmail(p.email); setUserAvatar(p.avatar); setAvatarType(p.avatarType);
-        } catch (e) {}
+        } catch (e) { }
       } else if (savedUser) {
         setUserEmail(savedUser); setUserName(savedUser.split('@')[0]);
       }
@@ -288,22 +288,11 @@ function ActiveMeetingContent({
     };
     loadProfile();
 
-    setParticipants([
-      { id: '1', name: 'User A', isVideoOn: true, isMuted: false, language: 'ja' },
-      { id: '2', name: 'User B', isVideoOn: true, isMuted: false, language: 'ko' }
-    ]);
-    setTranslationLogs([
-      { id: '1', speaker: 'User A', originalText: 'プロジェクトの進捗について報告します', translatedText: '프로젝트 진행 상황에 대해 보고합니다', originalLang: 'ja', timestamp: new Date(Date.now() - 5000) },
-      { id: '2', speaker: 'User B', originalText: '感사します。次のステップについて論議したいです', translatedText: 'ありがとうございます。次のステップについて議論したいです', originalLang: 'ko', timestamp: new Date(Date.now() - 3000) },
-    ]);
-    setTermExplanations([
-      { id: '1', term: 'プロジェクトの進捗', explanation: 'プロジェクトがどれだけ進んでいるかを示す指標。', detectedFrom: 'User Aの発言', timestamp: new Date(Date.now() - 4000) },
-    ]);
     const timer = setInterval(() => setDuration(p => p + 1), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  const formatDuration = (s: number) => `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;
+  const formatDuration = (s: number) => `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
 
   return (
     <div className="h-screen w-full flex flex-col bg-gray-900">
@@ -379,16 +368,16 @@ function ActiveMeetingContent({
                 {remoteTracks.map((track) => (
                   <motion.div key={track.participant.identity + track.source} className="relative bg-gray-800 rounded-xl overflow-hidden border-2 border-gray-700 hover:border-yellow-400 transition-all">
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <VideoTrack 
-                        trackRef={track} 
-                        className={`w-full h-full ${track.source === Track.Source.ScreenShare ? 'object-contain bg-black' : 'object-cover'}`} 
+                      <VideoTrack
+                        trackRef={track}
+                        className={`w-full h-full ${track.source === Track.Source.ScreenShare ? 'object-contain bg-black' : 'object-cover'}`}
                       />
                     </div>
                     <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
                       <div className="bg-black/70 backdrop-blur-sm px-3 py-1 rounded-lg flex items-center gap-2">
                         <span className="text-white text-sm font-semibold">{track.participant.identity}</span>
-                        {track.source === Track.Source.ScreenShare ? 
-                          <span className="text-xs bg-white text-black px-2 py-0.5 rounded font-bold">画面共有</span> : 
+                        {track.source === Track.Source.ScreenShare ?
+                          <span className="text-xs bg-white text-black px-2 py-0.5 rounded font-bold">画面共有</span> :
                           <span className="text-xs text-gray-300 bg-gray-600 px-2 py-0.5 rounded">REMOTE</span>
                         }
                       </div>
@@ -413,7 +402,7 @@ function ActiveMeetingContent({
                       <button onClick={() => setIsSidebarOpen(false)} className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"><ChevronRight className="h-5 w-5" /></button>
                     </div>
                   </div>
-                  
+
                   {/* Description Section */}
                   <div className="border-b border-gray-200 bg-white max-h-48 overflow-y-auto flex-shrink-0">
                     <div className="sticky top-0 bg-white px-4 pt-4 pb-2 border-b border-gray-100"><div className="flex items-center gap-2"><Bot className="h-4 w-4 text-yellow-600" /><h4 className="font-bold text-gray-900 text-sm">Description</h4><span className="text-xs text-gray-500">({termExplanations.length}件の用語解説)</span></div></div>
@@ -518,7 +507,7 @@ function ActiveMeetingContent({
               <div className="flex items-center gap-3"><div className="w-10 h-10 bg-white rounded-full flex items-center justify-center"><Settings className="h-5 w-5 text-yellow-600" /></div><div><h2 className="text-white font-bold text-lg">システム設定</h2><p className="text-yellow-100 text-xs">Device & Meeting Settings</p></div></div>
               <Button variant="ghost" onClick={() => setShowSettings(false)} className="text-white hover:bg-white/20 rounded-full w-8 h-8 p-0">✕</Button>
             </div>
-            
+
             <div className="overflow-y-auto p-6 space-y-6">
               {/* Audio Settings */}
               <div className="space-y-4">
@@ -526,25 +515,25 @@ function ActiveMeetingContent({
                 <div className="grid gap-4">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">マイク</label>
-                    <select 
-                      value={selectedMicId} 
-                      onChange={(e) => handleDeviceChange('audioinput', e.target.value)} 
+                    <select
+                      value={selectedMicId}
+                      onChange={(e) => handleDeviceChange('audioinput', e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 text-sm bg-white"
                     >
                       {!selectedMicId && <option value="" disabled>デバイスを選択中...</option>}
-                      {mics.map(m => <option key={m.deviceId} value={m.deviceId}>{m.label || `Microphone ${m.deviceId.slice(0,5)}...`}</option>)}
+                      {mics.map(m => <option key={m.deviceId} value={m.deviceId}>{m.label || `Microphone ${m.deviceId.slice(0, 5)}...`}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">スピーカー</label>
-                    <select 
-                      value={selectedSpeakerId} 
-                      onChange={(e) => handleDeviceChange('audiooutput', e.target.value)} 
+                    <select
+                      value={selectedSpeakerId}
+                      onChange={(e) => handleDeviceChange('audiooutput', e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 text-sm bg-white"
                       disabled={speakers.length === 0}
                     >
                       {!selectedSpeakerId && <option value="" disabled>デバイスを選択中...</option>}
-                      {speakers.map(s => <option key={s.deviceId} value={s.deviceId}>{s.label || `Speaker ${s.deviceId.slice(0,5)}...`}</option>)}
+                      {speakers.map(s => <option key={s.deviceId} value={s.deviceId}>{s.label || `Speaker ${s.deviceId.slice(0, 5)}...`}</option>)}
                     </select>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><p className="text-sm font-semibold text-gray-900">ノイズキャンセル</p><p className="text-xs text-gray-500">バックグラウンドノイズを低減</p></div><input type="checkbox" className="toggle" defaultChecked /></div>
@@ -557,13 +546,13 @@ function ActiveMeetingContent({
                 <div className="grid gap-4">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">カメラ</label>
-                    <select 
-                      value={selectedCameraId} 
-                      onChange={(e) => handleDeviceChange('videoinput', e.target.value)} 
+                    <select
+                      value={selectedCameraId}
+                      onChange={(e) => handleDeviceChange('videoinput', e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 text-sm bg-white"
                     >
                       {!selectedCameraId && <option value="" disabled>デバイスを選択中...</option>}
-                      {cameras.map(c => <option key={c.deviceId} value={c.deviceId}>{c.label || `Camera ${c.deviceId.slice(0,5)}...`}</option>)}
+                      {cameras.map(c => <option key={c.deviceId} value={c.deviceId}>{c.label || `Camera ${c.deviceId.slice(0, 5)}...`}</option>)}
                     </select>
                   </div>
                   <div>
@@ -608,10 +597,10 @@ function ActiveMeetingContent({
       {/* End Meeting Confirmation Modal */}
       {showEndMeetingConfirm && (
         <motion.div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-           <div className="bg-white p-6 rounded-xl w-96 shadow-2xl">
-              <div className="flex flex-col items-center gap-4 mb-6"><div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center"><AlertTriangle className="h-8 w-8 text-red-600" /></div><h2 className="text-xl font-bold text-gray-900">会議を終了しますか？</h2></div>
-              <div className="flex justify-end gap-3"><Button onClick={() => setShowEndMeetingConfirm(false)} variant="outline" className="flex-1">キャンセル</Button><Button onClick={confirmEndMeeting} variant="destructive" className="flex-1">終了する</Button></div>
-           </div>
+          <div className="bg-white p-6 rounded-xl w-96 shadow-2xl">
+            <div className="flex flex-col items-center gap-4 mb-6"><div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center"><AlertTriangle className="h-8 w-8 text-red-600" /></div><h2 className="text-xl font-bold text-gray-900">会議を終了しますか？</h2></div>
+            <div className="flex justify-end gap-3"><Button onClick={() => setShowEndMeetingConfirm(false)} variant="outline" className="flex-1">キャンセル</Button><Button onClick={confirmEndMeeting} variant="destructive" className="flex-1">終了する</Button></div>
+          </div>
         </motion.div>
       )}
 
@@ -630,7 +619,7 @@ function ActiveMeetingContent({
         onNameChange={setEditedUserName}
         onAvatarChange={setEditedUserAvatar}
         onAvatarTypeChange={setEditedAvatarType}
-        onAvatarImageUpload={(e) => {}}
+        onAvatarImageUpload={(e) => { }}
         onSave={() => setShowProfileSettings(false)}
       />
     </div>
@@ -662,9 +651,9 @@ export function ActiveMeeting() {
       onDisconnected={() => navigate('/')}
       className="h-screen w-full bg-gray-900"
     >
-      <ActiveMeetingContent 
-        meetingId={id || ''} 
-        currentUserProp={{ name: participantName || 'Me', language: 'ja' }} 
+      <ActiveMeetingContent
+        meetingId={id || ''}
+        currentUserProp={{ name: participantName || 'Me', language: 'ja' }}
         devices={{ audioInputId: audioDeviceId, videoInputId: videoDeviceId, audioOutputId: audioOutputDeviceId }}
         initialSettings={{ isMicOn: initialMicOn, isVideoOn: initialVideoOn }}
       />
