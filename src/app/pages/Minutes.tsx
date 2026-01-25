@@ -130,27 +130,13 @@ export function Minutes() {
     // Load meeting data from localStorage
     const savedMeetings = JSON.parse(localStorage.getItem('meetings') || '[]');
     const meeting = savedMeetings.find((m: any) => m.id === id);
-    
+
     if (meeting) {
-      // Generate AI summary if not exists
+      // Use summary from meeting or empty
       const summary = meeting.summary || {
-        keyPoints: [
-          'プロジェクトの進捗状況について全体的な共有が行われました',
-          '次期スプリントの計画とマイルストーンが確認されました',
-          '日韓チーム間のコラボレーションが順調に進んでいることが報告されました',
-          '技術的な課題について建設的な議論が行われました',
-        ],
-        actionItems: [
-          '次回ミーティングまでに各チームがタスクを完了する（佐藤太郎）',
-          'KPI レポートを作成し共有する（김민수）',
-          'デザインレビューを実施する（田中花子）',
-          '技術ドキュメントを更新する（이지えん）',
-        ],
-        decisions: [
-          '次期スプリントのリリース日を2週間後に設定',
-          '隔週で日韓合同ミーティングを継続実施',
-          'Uri-TomoのAI翻訳機能を全プロジェクトに展開',
-        ],
+        keyPoints: [],
+        actionItems: [],
+        decisions: [],
       };
 
       // Ensure participants array exists and is properly formatted
@@ -252,7 +238,7 @@ ${t.translatedLang}: ${t.translatedText}
                 <p className="text-white/90 text-sm">会議議事録</p>
               </div>
             </div>
-            
+
             <Button
               onClick={handleExport}
               className="bg-white text-yellow-600 hover:bg-yellow-50 shadow-md"

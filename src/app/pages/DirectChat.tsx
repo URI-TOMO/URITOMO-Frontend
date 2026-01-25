@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { 
-  Home, 
-  Users, 
-  Send, 
+import {
+  Home,
+  Users,
+  Send,
   ArrowLeft,
   Bot,
   MessageCircle,
@@ -45,7 +45,7 @@ export function DirectChat() {
   const { contactId } = useParams();
   const navigate = useNavigate();
   const chatEndRef = useRef<HTMLDivElement>(null);
-  
+
   const [contact, setContact] = useState<Contact | null>(null);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -147,28 +147,13 @@ export function DirectChat() {
     const savedMessages = JSON.parse(
       localStorage.getItem(`uri-tomo-direct-chat-${contactId}`) || '[]'
     );
-    
-    // Initialize with default messages if empty
-    if (savedMessages.length === 0) {
-      const defaultMessages: ChatMessage[] = [
-        {
-          id: '1',
-          sender: 'Uri-Tomo',
-          message: `${foundContact?.name || 'Friend'}とのダイレクトチャットが開始されました。AI翻訳機能が有効です。`,
-          timestamp: new Date(),
-          isMe: false,
-          isAI: true,
-        },
-      ];
-      setMessages(defaultMessages);
-    } else {
-      setMessages(
-        savedMessages.map((m: any) => ({
-          ...m,
-          timestamp: new Date(m.timestamp),
-        }))
-      );
-    }
+
+    setMessages(
+      savedMessages.map((m: any) => ({
+        ...m,
+        timestamp: new Date(m.timestamp),
+      }))
+    );
   }, [contactId]);
 
   useEffect(() => {
@@ -189,7 +174,7 @@ export function DirectChat() {
 
     const updatedMessages = [...messages, newMessage];
     setMessages(updatedMessages);
-    
+
     // Save to localStorage
     localStorage.setItem(
       `uri-tomo-direct-chat-${contactId}`,
@@ -197,25 +182,6 @@ export function DirectChat() {
     );
 
     setInputMessage('');
-
-    // Simulate response from contact after 1.5 seconds
-    setTimeout(() => {
-      const responseMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        sender: contact?.name || 'Friend',
-        message: 'メッセージを受け取りました！',
-        timestamp: new Date(),
-        isMe: false,
-      };
-
-      const messagesWithResponse = [...updatedMessages, responseMessage];
-      setMessages(messagesWithResponse);
-      
-      localStorage.setItem(
-        `uri-tomo-direct-chat-${contactId}`,
-        JSON.stringify(messagesWithResponse)
-      );
-    }, 1500);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -299,9 +265,8 @@ export function DirectChat() {
                 {contact.name.charAt(0)}
               </div>
               <div
-                className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
-                  contact.status === 'online' ? 'bg-green-500' : 'bg-gray-400'
-                }`}
+                className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${contact.status === 'online' ? 'bg-green-500' : 'bg-gray-400'
+                  }`}
               />
             </div>
             <div>
@@ -348,9 +313,8 @@ export function DirectChat() {
                     <Bot className="h-3 w-3 text-yellow-600" />
                   </div>
                 )}
-                <span className={`text-sm font-semibold ${
-                  message.isAI ? 'text-yellow-700' : 'text-gray-700'
-                }`}>
+                <span className={`text-sm font-semibold ${message.isAI ? 'text-yellow-700' : 'text-gray-700'
+                  }`}>
                   {message.sender}
                 </span>
                 <span className="text-xs text-gray-400">
@@ -361,13 +325,12 @@ export function DirectChat() {
                 </span>
               </div>
               <div
-                className={`inline-block px-4 py-2 rounded-2xl ${
-                  message.isAI
+                className={`inline-block px-4 py-2 rounded-2xl ${message.isAI
                     ? 'bg-gradient-to-r from-yellow-100 to-amber-100 border-2 border-yellow-300 text-gray-900'
                     : message.isMe
-                    ? 'bg-gradient-to-r from-yellow-400 to-amber-400 text-white'
-                    : 'bg-white border border-gray-200 text-gray-900'
-                }`}
+                      ? 'bg-gradient-to-r from-yellow-400 to-amber-400 text-white'
+                      : 'bg-white border border-gray-200 text-gray-900'
+                  }`}
               >
                 <p className="text-sm whitespace-pre-wrap">{message.message}</p>
               </div>
@@ -442,11 +405,10 @@ export function DirectChat() {
             </Button>
             <Button
               variant="outline"
-              className={`border-2 transition-colors ${
-                showStickerPicker
+              className={`border-2 transition-colors ${showStickerPicker
                   ? 'bg-yellow-200 border-yellow-400'
                   : 'border-yellow-300 hover:bg-yellow-50'
-              }`}
+                }`}
               onClick={() => setShowStickerPicker(!showStickerPicker)}
               title="スタンプを選択"
             >

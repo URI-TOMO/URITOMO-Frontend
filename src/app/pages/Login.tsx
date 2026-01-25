@@ -146,30 +146,10 @@ export function Login({ onLogin }: LoginProps) {
   // 소셜 로그인 핸들러
   const handleSocialLogin = async (provider: string) => {
     // Line 버튼을 누르면 게스트로 로그인
-    if (provider === 'line') {
-      const guestResponse = {
-        access_token: 'guest-token-' + Date.now(),
-        token_type: 'Bearer',
-        user: {
-          id: 'guest-' + Date.now(),
-          email: 'guest@uri-tomo.local',
-          name: 'Guest User',
-          display_name: 'Guest User',
-          picture: 'https://via.placeholder.com/150/FFB800/FFFFFF?text=Guest'
-        }
-      };
-
-      handleAuthSuccess(guestResponse);
+    if (provider === 'line' || provider === 'kakao' || provider === 'google') {
+      toast.info(`${provider} ログインは準備中です。\n(${provider} login is coming soon)`);
       return;
     }
-
-    /*
-    if (provider !== 'google') {
-      return;
-    }
-    // 구글 로그인은 useGoogleLogin 훅을 통해 처리됨
-    */
-    toast.info(`${provider} ログインは準備中です。\n(${provider} login is coming soon)`);
   };
 
   /*

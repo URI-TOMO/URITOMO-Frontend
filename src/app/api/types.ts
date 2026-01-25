@@ -34,3 +34,27 @@ export interface SignupRequest {
   email: string;
   password: string;
 }
+
+// 메인 페이지 데이터 관련 타입
+export interface MainUser {
+  display_name: string;
+  email: string;
+}
+
+export interface Friend {
+  id: string;
+  friend_name: string;
+  email: string;
+}
+
+export interface Room {
+  id: string;
+  name: string;
+}
+
+export interface MainDataResponse {
+  user: MainUser;
+  friend_count: number;
+  user_friends: Friend[];
+  rooms: Room[];
+}
