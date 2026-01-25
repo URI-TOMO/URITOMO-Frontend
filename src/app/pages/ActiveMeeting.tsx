@@ -160,7 +160,16 @@ function ActiveMeetingContent({
   // --- WebSocket Connection Logic ---
   useEffect(() => {
     // 修正: wsSessionIdがなくても、ルームID (meetingId) を使って接続を試みる
-    const targetSessionId = wsSessionId || meetingId;
+    // さらに、meetingIdがLiveKitの内部ID(数値)になっている可能性があるため、
+    // URLから ls_ で始まるIDがあればそれを優先する
+    let targetSessionId = wsSessionId || meetingId;
+
+    // URLからセッションIDを抽出 (例: /active-meeting/ls_xxxx)
+    const urlMatch = window.location.pathname.match(/(ls_[a-zA-Z0-9]+)/);
+    if (urlMatch && urlMatch[1]) {
+      console.log(`[ActiveMeeting] Found session ID in URL: ${urlMatch[1]} (overriding ${targetSessionId})`);
+      targetSessionId = urlMatch[1];
+    }
 
     if (!targetSessionId) {
       console.log('[ActiveMeeting] No WebSocket session ID or Room ID, using local-only mode');
@@ -202,6 +211,22 @@ function ActiveMeetingContent({
               }
               return [...prev, newMsg];
             });
+          } else if (msg.type === 'translation' && msg.data) {
+            // 翻訳メッセージの受信
+            const data = msg.data;
+            const newLog: TranslationLog = {
+              id: Date.now().toString(), // 本当はUUIDなどが良いが簡易的に
+              speaker: 'Unknown', // backendからのデータにspeakerが含まれていれば使う
+              originalText: data.original_text,
+              translatedText: data.translated_text,
+              originalLang: data.source_lang as 'ja' | 'ko',
+              timestamp: new Date()
+            };
+            setTranslationLogs(prev => [newLog, ...prev]); // 新しいものを上に
+
+            // チャット欄にも翻訳を表示したい場合（オプション）
+            // setChatMessages(...) 
+
           } else if (msg.type === 'session_connected') {
             console.log('🎉 Session connected:', msg.data);
           } else if (msg.type === 'error') {
@@ -253,6 +278,57 @@ function ActiveMeetingContent({
       });
     }
   }, []);
+
+  // --- Logic 1.5: LiveKit Data Channel Listener (Direct Agent Communication) ---
+  useEffect(() => {
+    if (!room) return;
+
+    const handleDataReceived = (payload: Uint8Array, participant: any, kind: any) => {
+      try {
+        const textDecoder = new TextDecoder();
+        const strData = textDecoder.decode(payload);
+        const msg = JSON.parse(strData);
+
+        console.log('📡 LiveKit Data Received:', msg);
+
+        if (msg.type === 'translation' && msg.data) {
+          const data = msg.data;
+          const newLog: TranslationLog = {
+            id: Date.now().toString(),
+            speaker: participant?.identity || 'Unknown',
+            originalText: data.original_text,
+            translatedText: data.translated_text,
+            originalLang: data.source_lang as 'ja' | 'ko',
+            timestamp: new Date()
+          };
+          setTranslationLogs(prev => [newLog, ...prev]);
+          toast.success('LiveKit経由で翻訳を受信しました');
+
+        } else if (msg.type === 'chat' && msg.text) {
+          // チャットもバックアップとして受信可能にする
+          const newMsg: ChatMessage = {
+            id: Date.now().toString(),
+            sender: participant?.identity || 'Agent',
+            message: msg.text,
+            timestamp: new Date(),
+            isAI: true
+          };
+          setChatMessages(prev => [...prev, newMsg]);
+        }
+
+      } catch (e) {
+        console.warn('Failed to parse LiveKit data:', e);
+      }
+    };
+
+    // イベント定数を文字列で指定するか、import { RoomEvent } from 'livekit-client' が必要だが
+    // ここでは文字列 "dataReceived" で代用可能（LiveKit JS SDKの仕様による）
+    room.on('dataReceived', handleDataReceived);
+
+    return () => {
+      room.off('dataReceived', handleDataReceived);
+    };
+  }, [room]);
 
   // --- Logic 2: State Sync with LiveKit ---
   useEffect(() => {
