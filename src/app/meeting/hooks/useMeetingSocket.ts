@@ -25,87 +25,62 @@ export function useMeetingSocket({ roomId, userName }: UseMeetingSocketProps) {
 
             try {
                 // 1. Start/Get Live Session ID from Backend
-                // If we treat the URL ID as room_id, we need to exchange it for a session_id
-                // Or if we treat it as session_id directly, we skip this.
-                // Given backend requirement: POST /meeting/{room_id}/live-sessions -> returns session
-
-                console.log('🚀 Initializing session for room:', roomId);
-                const response = await meetingApi.startLiveSession(roomId);
-                const newSessionId = response.data.session.id;
+                /* 
+                   Currently disabled as startLiveSession signature changed to require sessionId from LiveKit.
+                   This hook needs to be refactored if it is still used without LiveKit provider.
+                */
+                // console.log('🚀 Initializing session for room:', roomId);
+                // const response = await meetingApi.startLiveSession(roomId);
+                // const newSessionId = response.data.session.id;
 
                 if (!mounted) return;
-                setSessionId(newSessionId);
+                // setSessionId(newSessionId);
 
                 // 2. Connect WebSocket
-                socket = new MeetingSocket(newSessionId);
-                socketRef.current = socket;
-                socket.connect();
+                // socket = new MeetingSocket(newSessionId);
+                // socketRef.current = socket;
+                // socket.connect();
 
                 // 3. Listen for messages
-                socket.onMessage((msg: WSMessage) => {
-                    if (msg.type === 'session_connected') {
-                        setIsConnected(true);
-                        toast.success('チャットサーバーに接続しました');
-                    } else if (msg.type === 'chat') {
-                        const data = msg.data;
-                        // Convert to ChatMessage format
-                        const chatMsg: ChatMessage = {
-                            id: data.id,
-                            room_id: data.room_id,
-                            seq: data.seq,
-                            sender_member_id: data.sender_member_id,
-                            display_name: data.display_name,
-                            text: data.text,
-                            lang: data.lang,
-                            created_at: data.created_at,
-                            isMe: data.display_name === userName // Simple check, ideally use user ID
-                        };
-                        setMessages(prev => [...prev, chatMsg]);
-                    } else if (msg.type === 'translation') {
-                        const data = msg.data;
-                        // Find original message and attach translation
-                        // Current WS implementation sends translation separately.
-                        // We need to match it. But how?
-                        // Backend stores 'related_message_id'. We should expose it in WS payload.
-                        // Backend `ws_message.py` broadcast data:
-                        /*
-                           "data": {
-                               "room_id": room_id,
-                               "participant_id": user_id,
-                               "participant_name": member.display_name,
-                               "Original": text,
-                               "translated": translated_text,
-                               "timestamp": ai_event.created_at.isoformat(),
-                               "sequence": str(next_seq),
-                               "lang": target_lang
-                           }
-                        */
-                        // It doesn't send related message ID in the broadcast data unfortunately.
-                        // But it sends "Original" text. We can match by text or sequence if applicable.
-                        // Sequence might be distinct.
-                        // Ideally we just treat it as a new "Translation Bubble" or attach to previous.
-                        // For now, let's update the last matching message if possible, or append it.
-
-                        setMessages(prev => {
-                            // Try to find a message with same text sent recently?
-                            // Or just add a new "System" message or modify the UI to show translation.
-                            // The requirements say "Real-time translation".
-
-                            // Let's iterate backwards to find the original message
-                            const newMessages = [...prev];
-                            for (let i = newMessages.length - 1; i >= 0; i--) {
-                                if (newMessages[i].text === data.Original && !newMessages[i].translated) {
-                                    newMessages[i] = {
-                                        ...newMessages[i],
-                                        translated: data.translated
-                                    };
-                                    return newMessages;
+                if (socket) {
+                    socket.onMessage((msg: WSMessage) => {
+                        if (msg.type === 'session_connected') {
+                            setIsConnected(true);
+                            toast.success('チャットサーバーに接続しました');
+                        } else if (msg.type === 'chat') {
+                            const data = msg.data;
+                            // Convert to ChatMessage format
+                            const chatMsg: ChatMessage = {
+                                id: data.id,
+                                room_id: data.room_id,
+                                seq: data.seq,
+                                sender_member_id: data.sender_member_id,
+                                display_name: data.display_name,
+                                text: data.text,
+                                lang: data.lang,
+                                created_at: data.created_at,
+                                isMe: data.display_name === userName // Simple check, ideally use user ID
+                            };
+                            setMessages(prev => [...prev, chatMsg]);
+                        } else if (msg.type === 'translation') {
+                            const data = msg.data;
+                            // Handle translation logic...
+                            setMessages(prev => {
+                                const newMessages = [...prev];
+                                for (let i = newMessages.length - 1; i >= 0; i--) {
+                                    if (newMessages[i].text === data.Original && !newMessages[i].translated) {
+                                        newMessages[i] = {
+                                            ...newMessages[i],
+                                            translated: data.translated
+                                        };
+                                        return newMessages;
+                                    }
                                 }
-                            }
-                            return prev;
-                        });
-                    }
-                });
+                                return prev;
+                            });
+                        }
+                    });
+                }
 
             } catch (e) {
                 console.error('Failed to init session:', e);

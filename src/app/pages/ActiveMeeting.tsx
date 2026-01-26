@@ -10,6 +10,7 @@ import {
 import { Button } from '../components/ui/button';
 import { ProfileSettingsModal, SystemSettingsModal } from '../components/SettingsModals';
 import { toast } from 'sonner';
+import { meetingApi } from '../api/meeting';
 // LiveKit imports
 import {
   LiveKitRoom,
@@ -74,12 +75,14 @@ function ActiveMeetingContent({
   meetingId,
   currentUserProp,
   devices: initialDevices,
-  initialSettings
+  initialSettings,
+  livekitToken
 }: {
   meetingId: string,
   currentUserProp: any,
   devices?: { audioInputId?: string; videoInputId?: string; audioOutputId?: string },
-  initialSettings?: { isMicOn: boolean, isVideoOn: boolean }
+  initialSettings?: { isMicOn: boolean, isVideoOn: boolean },
+  livekitToken?: string
 }) {
   const navigate = useNavigate();
   const room = useRoomContext();
@@ -146,6 +149,31 @@ function ActiveMeetingContent({
       });
     }
   }, []);
+
+  // --- Logic 1.5: Live Session Start Trigger ---
+  useEffect(() => {
+    if (room && room.state === 'connected' && meetingId) {
+      // room.sid might be missing in type definitions but exists at runtime
+      const sessionId = (room as any).sid;
+
+      if (!sessionId) {
+        console.warn('⚠️ Room connected but Session ID (sid) is missing. Waiting...');
+        return;
+      }
+
+      console.log(`📡 Connecting to Live Session backend. Room: ${meetingId}, Session (SID): ${sessionId}`);
+
+      meetingApi.startLiveSession(meetingId, sessionId, livekitToken)
+        .then(response => {
+          console.log('✅ Live Session started:', response);
+          toast.success('Live Session backend connected');
+        })
+        .catch(error => {
+          console.error('❌ Failed to start live session:', error);
+          toast.error('Failed to notify backend of live session');
+        });
+    }
+  }, [room, room?.state, meetingId]);
 
   useEffect(() => {
     if (localParticipant) {
@@ -640,7 +668,7 @@ export function ActiveMeeting() {
     }
   }, [livekitToken, livekitUrl, navigate, id]);
 
-  if (!livekitToken || !livekitUrl) return null;
+  console.log(`[ActiveMeeting] Connecting to LiveKit URL: ${livekitUrl} with Token length: ${livekitToken?.length}`);
 
   return (
     <LiveKitRoom
@@ -649,6 +677,11 @@ export function ActiveMeeting() {
       video={initialVideoOn ? { deviceId: videoDeviceId } : false}
       audio={initialMicOn ? { deviceId: audioDeviceId } : false}
       onDisconnected={() => navigate('/')}
+      onError={(err) => {
+        console.error("❌ LiveKit Connection Error:", err);
+        // Specifically catch the DNS error pattern from the user report if possible, though it's usually generic here
+        toast.error(`接続エラー: ${err.message || 'サーバーに接続できませんでした'}`);
+      }}
       className="h-screen w-full bg-gray-900"
     >
       <ActiveMeetingContent
@@ -656,6 +689,7 @@ export function ActiveMeeting() {
         currentUserProp={{ name: participantName || 'Me', language: 'ja' }}
         devices={{ audioInputId: audioDeviceId, videoInputId: videoDeviceId, audioOutputId: audioOutputDeviceId }}
         initialSettings={{ isMicOn: initialMicOn, isVideoOn: initialVideoOn }}
+        livekitToken={livekitToken}
       />
       <RoomAudioRenderer />
     </LiveKitRoom>
