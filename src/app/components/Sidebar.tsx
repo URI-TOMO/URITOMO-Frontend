@@ -29,23 +29,23 @@ export function Sidebar({ onLogout, userName, userEmail, userAvatar, avatarType,
   const [isRoomDialogOpen, setIsRoomDialogOpen] = useState(false);
   const [newRoomName, setNewRoomName] = useState('');
 
-  useEffect(() => {
+  const loadRooms = () => {
     // Load rooms from localStorage
     const savedRooms = JSON.parse(localStorage.getItem('uri-tomo-rooms') || '[]');
-    if (savedRooms.length === 0) {
-      // Initialize with default rooms
-      const defaultRooms: Room[] = [
-        { id: '1', name: 'あ' },
-        { id: '2', name: 'か' },
-        { id: '3', name: 'さ' },
-        { id: '4', name: 'た' },
-        { id: '5', name: 'な' },
-      ];
-      setRooms(defaultRooms);
-      localStorage.setItem('uri-tomo-rooms', JSON.stringify(defaultRooms));
-    } else {
-      setRooms(savedRooms);
-    }
+    setRooms(savedRooms);
+  };
+
+  useEffect(() => {
+    loadRooms();
+
+    const handleRoomsUpdated = () => {
+      loadRooms();
+    };
+
+    window.addEventListener('rooms-updated', handleRoomsUpdated);
+    return () => {
+      window.removeEventListener('rooms-updated', handleRoomsUpdated);
+    };
   }, []);
 
   const handleCreateRoom = () => {
@@ -59,7 +59,7 @@ export function Sidebar({ onLogout, userName, userEmail, userAvatar, avatarType,
     const updatedRooms = [...rooms, newRoom];
     setRooms(updatedRooms);
     localStorage.setItem('uri-tomo-rooms', JSON.stringify(updatedRooms));
-    
+
     setIsRoomDialogOpen(false);
     setNewRoomName('');
   };
@@ -109,7 +109,7 @@ export function Sidebar({ onLogout, userName, userEmail, userAvatar, avatarType,
           {rooms.map((room, index) => {
             // Extract first character properly (handles emojis and special characters)
             const firstChar = Array.from(room.name)[0] || room.name.charAt(0);
-            
+
             return (
               <button
                 key={room.id}
@@ -135,7 +135,7 @@ export function Sidebar({ onLogout, userName, userEmail, userAvatar, avatarType,
           <Settings className="h-5 w-5" />
           <span className="font-medium">設定</span>
         </button>
-        
+
         <Dialog open={isRoomDialogOpen} onOpenChange={setIsRoomDialogOpen}>
           <DialogTrigger asChild>
             <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-yellow-100 text-yellow-700 transition-colors">
@@ -154,7 +154,7 @@ export function Sidebar({ onLogout, userName, userEmail, userAvatar, avatarType,
                   id="roomName"
                   value={newRoomName}
                   onChange={(e) => setNewRoomName(e.target.value)}
-                  placeholder="ルーム名を入力"
+                  placeholder="ルーム名 입력"
                   className="mt-2"
                 />
               </div>
@@ -174,7 +174,7 @@ export function Sidebar({ onLogout, userName, userEmail, userAvatar, avatarType,
           className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
         >
           <LogOut className="h-5 w-5" />
-          <span className="font-medium">ログアウト</span>
+          <span className="font-medium">ログ아웃</span>
         </button>
       </div>
     </aside>

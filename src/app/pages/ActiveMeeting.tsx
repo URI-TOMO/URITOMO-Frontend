@@ -11,6 +11,7 @@ import {
 import { Button } from '../components/ui/button';
 import { ProfileSettingsModal, SystemSettingsModal } from '../components/SettingsModals';
 import { toast } from 'sonner';
+import { meetingApi } from '../api/meeting';
 // LiveKit imports
 import {
   LiveKitRoom,
@@ -35,6 +36,8 @@ const ensureMediaPermission = async () => {
 };
 
 // --- Types ---
+
+
 interface TranslationLog {
   id: string;
   speaker: string;
@@ -68,12 +71,14 @@ function ActiveMeetingContent({
   meetingId,
   currentUserProp,
   devices: initialDevices,
-  initialSettings
+  initialSettings,
+  livekitToken
 }: {
   meetingId: string,
   currentUserProp: any,
   devices?: { audioInputId?: string; videoInputId?: string; audioOutputId?: string },
-  initialSettings?: { isMicOn: boolean, isVideoOn: boolean }
+  initialSettings?: { isMicOn: boolean, isVideoOn: boolean },
+  livekitToken?: string
 }) {
   const navigate = useNavigate();
   const room = useRoomContext();
@@ -120,7 +125,14 @@ function ActiveMeetingContent({
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [translationLogs, setTranslationLogs] = useState<TranslationLog[]>([]);
   const [termExplanations, setTermExplanations] = useState<TermExplanation[]>([]);
+  // const [participants, setParticipants] = useState<Participant[]>([]); // Removed in favor of useParticipants
   const [meetingTitle] = useState('日韓プロジェクト会議');
+
+  // Refs
+  const chatInputRef = useRef<HTMLInputElement>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
 
   // Profile Settings State
   const [showProfileSettings, setShowProfileSettings] = useState(false);
@@ -145,6 +157,31 @@ function ActiveMeetingContent({
       });
     }
   }, []);
+
+  // --- Logic 1.5: Live Session Start Trigger ---
+  useEffect(() => {
+    if (room && room.state === 'connected' && meetingId) {
+      // room.sid might be missing in type definitions but exists at runtime
+      const sessionId = (room as any).sid;
+
+      if (!sessionId) {
+        console.warn('⚠️ Room connected but Session ID (sid) is missing. Waiting...');
+        return;
+      }
+
+      console.log(`📡 Connecting to Live Session backend. Room: ${meetingId}, Session (SID): ${sessionId}`);
+
+      meetingApi.startLiveSession(meetingId, sessionId, livekitToken)
+        .then(response => {
+          console.log('✅ Live Session started:', response);
+          toast.success('Live Session backend connected');
+        })
+        .catch(error => {
+          console.error('❌ Failed to start live session:', error);
+          toast.error('Failed to notify backend of live session');
+        });
+    }
+  }, [room, room?.state, meetingId]);
 
   // --- Logic 2: State Sync with LiveKit ---
   useEffect(() => {
@@ -283,15 +320,10 @@ function ActiveMeetingContent({
     input.click();
   };
 
-  // ★ここに追加   --- Refs ---
-  const chatInputRef = useRef<HTMLInputElement>(null);
   // 2. メッセージが追加されたらスクロールする処理
-  const chatEndRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
-  // 3.ファイル添付
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleStickerSelect = (sticker: string) => {
     setChatMessages([...chatMessages, { id: Date.now().toString(), sender: currentUser.name, message: sticker, timestamp: new Date() }]);
@@ -300,6 +332,7 @@ function ActiveMeetingContent({
 
   const handleEndMeeting = () => setShowEndMeetingConfirm(true);
 
+  // ★ここに追加: 会議終了確定ハンドラ
   const confirmEndMeeting = () => {
     const endTime = new Date();
 
@@ -488,7 +521,6 @@ function ActiveMeetingContent({
                       <VideoTrack
                         trackRef={track}
                         className={`w-full h-full ${track.source === Track.Source.ScreenShare ? 'object-contain bg-black' : 'object-cover'}`}
-                        // ▼▼▼ 修正: カメラ映像の場合のみ左右反転させるスタイルを追加 ▼▼▼
                         style={track.source === Track.Source.Camera ? { transform: 'scaleX(-1)' } : undefined}
                       />
                     </div>
@@ -579,7 +611,7 @@ function ActiveMeetingContent({
                                     {term.explanation}
                                   </p>
                                   <p className="text-xs text-yellow-700 mt-1">
-                                    ��� {term.detectedFrom}
+                                    💬 {term.detectedFrom}
                                   </p>
                                 </div>
                               </div>
@@ -1290,7 +1322,7 @@ export function ActiveMeeting() {
     }
   }, [livekitToken, livekitUrl, navigate, id]);
 
-  if (!livekitToken || !livekitUrl) return null;
+  console.log(`[ActiveMeeting] Connecting to LiveKit URL: ${livekitUrl} with Token length: ${livekitToken?.length}`);
 
   return (
     <LiveKitRoom
@@ -1299,6 +1331,11 @@ export function ActiveMeeting() {
       video={initialVideoOn ? { deviceId: videoDeviceId } : false}
       audio={initialMicOn ? { deviceId: audioDeviceId } : false}
       onDisconnected={() => navigate('/')}
+      onError={(err) => {
+        console.error("❌ LiveKit Connection Error:", err);
+        // Specifically catch the DNS error pattern from the user report if possible, though it's usually generic here
+        toast.error(`接続エラー: ${err.message || 'サーバーに接続できませんでした'}`);
+      }}
       className="h-screen w-full bg-gray-900"
     >
       <ActiveMeetingContent
@@ -1306,6 +1343,7 @@ export function ActiveMeeting() {
         currentUserProp={{ name: participantName || 'Me', language: 'ja' }}
         devices={{ audioInputId: audioDeviceId, videoInputId: videoDeviceId, audioOutputId: audioOutputDeviceId }}
         initialSettings={{ isMicOn: initialMicOn, isVideoOn: initialVideoOn }}
+        livekitToken={livekitToken}
       />
       <RoomAudioRenderer />
     </LiveKitRoom>

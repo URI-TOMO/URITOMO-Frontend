@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, desktopCapturer, session } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import { AccessToken } from 'livekit-server-sdk'
+
 import dotenv from 'dotenv'
 
 dotenv.config()
@@ -20,7 +20,7 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 let win: BrowserWindow | null
 
 // ★重要: コールバックを保存する変数は関数の外に置く
-let screenShareCallback: ((result: any) => void) | null = null; 
+let screenShareCallback: ((result: any) => void) | null = null;
 
 function createWindow() {
   win = new BrowserWindow({
@@ -38,17 +38,10 @@ function createWindow() {
   // ▼▼▼ 画面共有リクエストのハンドリング ▼▼▼
   win.webContents.session.setDisplayMediaRequestHandler((request, callback) => {
     console.log('[Main] DisplayMediaRequest received');
-    
+
     desktopCapturer.getSources({ types: ['screen', 'window'] }).then((sources) => {
       console.log('[Main] Found sources:', sources.length);
-      
-      // ★修正: ここで不要なウィンドウをフィルタリング
-      const cleanSources = sources.filter(source => 
-        source.name !== 'PDRSTYLEAGENT' && // 特定のアプリを除外
-        source.name !== 'Overlay' &&       // NVIDIAなどのオーバーレイも除外すると良い
-        source.id !== 'screen:0:0'         // 必要であればダミー画面も除外
-      );
-      
+
       // コールバックをグローバル変数に保存（Reactからの選択待ち）
       screenShareCallback = callback;
 
@@ -86,25 +79,12 @@ app.on('activate', () => {
 app.whenReady().then(() => {
   createWindow()
 
-  // LiveKitトークン発行
-  ipcMain.handle('get-livekit-token', async (_, { roomName, participantName }) => {
-    try {
-      const apiKey = process.env.LIVEKIT_API_KEY
-      const apiSecret = process.env.LIVEKIT_API_SECRET
-      const wsUrl = process.env.LIVEKIT_URL
-      if (!apiKey || !apiSecret || !wsUrl) throw new Error('LiveKit env missing')
-      const at = new AccessToken(apiKey, apiSecret, { identity: participantName })
-      at.addGrant({ roomJoin: true, room: roomName, canPublish: true, canSubscribe: true })
-      return { token: await at.toJwt(), url: wsUrl }
-    } catch (error) {
-      console.error(error); throw error;
-    }
-  })
+
 
   // ▼▼▼ Reactからの選択結果を受け取る処理 ▼▼▼
   ipcMain.handle('select-screen-source', async (_, sourceId: string | null) => {
     console.log('[Main] Received selection:', sourceId);
-    
+
     if (!screenShareCallback) {
       console.warn('[Main] No callback waiting');
       return;
@@ -114,11 +94,11 @@ app.whenReady().then(() => {
       // 指定されたIDのソースを再取得して渡す
       const sources = await desktopCapturer.getSources({ types: ['screen', 'window'] });
       const selectedSource = sources.find(s => s.id === sourceId);
-      
+
       if (selectedSource) {
         console.log('[Main] Starting share with:', selectedSource.name);
         // audio: false にして安定性を優先
-        screenShareCallback({ video: selectedSource as any, audio: false }); 
+        screenShareCallback({ video: selectedSource as any, audio: false });
       } else {
         console.error('[Main] Source not found');
         screenShareCallback(null as any);
@@ -128,5 +108,15 @@ app.whenReady().then(() => {
       screenShareCallback(null as any);
     }
     screenShareCallback = null; // リセット
+  });
+
+  // 📝 프론트엔드 로그를 터미널(메인 프로세스)에 출력하기 위한 리스너
+  ipcMain.on('log', (_, data) => {
+    if (typeof data === 'string') {
+      console.log('\x1b[36m%s\x1b[0m', `[Renderer Log] ${data}`);
+    } else {
+      console.log('\x1b[36m%s\x1b[0m', `[Renderer API Log]`);
+      console.dir(data, { depth: null, colors: true });
+    }
   });
 })

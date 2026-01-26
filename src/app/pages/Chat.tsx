@@ -129,7 +129,7 @@ export function Chat() {
     // Load or initialize messages
     const chatKey = `uri-tomo-chat-${contactId}`;
     const savedMessages = localStorage.getItem(chatKey);
-    
+
     if (savedMessages) {
       const parsedMessages = JSON.parse(savedMessages);
       setMessages(parsedMessages.map((m: any) => ({
@@ -137,15 +137,7 @@ export function Chat() {
         timestamp: new Date(m.timestamp)
       })));
     } else {
-      // Initial Uri-Tomo greeting
-      const initialMessage: Message = {
-        id: '1',
-        sender: 'uri-tomo',
-        text: `${currentContact?.name || 'Friend'}とのダイレクトチャットが開始されました。AI翻訳機能で自動翻訳します。`,
-        timestamp: new Date(),
-      };
-      setMessages([initialMessage]);
-      localStorage.setItem(chatKey, JSON.stringify([initialMessage]));
+      setMessages([]);
     }
   }, [contactId]);
 
@@ -169,25 +161,14 @@ export function Chat() {
 
     const updatedMessages = [...messages, userMessage];
     setMessages(updatedMessages);
-    
+
     // Save to localStorage
     const chatKey = `uri-tomo-chat-${contactId}`;
     localStorage.setItem(chatKey, JSON.stringify(updatedMessages));
-    
+
     setNewMessage('');
 
-    // Simulate contact response after a delay
-    setTimeout(() => {
-      const contactMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        sender: 'contact',
-        text: '안녕하세요! (こんにちは！)',
-        timestamp: new Date(),
-      };
-      const withResponse = [...updatedMessages, contactMessage];
-      setMessages(withResponse);
-      localStorage.setItem(chatKey, JSON.stringify(withResponse));
-    }, 1000);
+    setNewMessage('');
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -248,7 +229,7 @@ export function Chat() {
           >
             <ArrowLeft className="h-5 w-5 text-gray-700" />
           </button>
-          
+
           {contact && (
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-full bg-blue-400 flex items-center justify-center text-white font-semibold">
@@ -284,9 +265,8 @@ export function Chat() {
             key={message.id}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`flex ${
-              message.sender === 'user' ? 'justify-end' : 'justify-start'
-            }`}
+            className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'
+              }`}
           >
             {message.sender === 'uri-tomo' ? (
               <div className="max-w-2xl">
@@ -385,11 +365,10 @@ export function Chat() {
           {/* Sticker Button */}
           <button
             onClick={() => setShowStickerPicker(!showStickerPicker)}
-            className={`p-2 rounded-lg transition-colors ${
-              showStickerPicker
-                ? 'bg-yellow-200 text-yellow-700'
-                : 'hover:bg-gray-100 text-gray-600'
-            }`}
+            className={`p-2 rounded-lg transition-colors ${showStickerPicker
+              ? 'bg-yellow-200 text-yellow-700'
+              : 'hover:bg-gray-100 text-gray-600'
+              }`}
             title="スタンプを選択"
           >
             <Smile className="h-5 w-5" />

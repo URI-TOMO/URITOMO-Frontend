@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { 
-  Video, 
-  VideoOff, 
-  Mic, 
-  MicOff, 
+import {
+  Video,
+  VideoOff,
+  Mic,
+  MicOff,
   Settings,
   ArrowLeft, // 未使用ですが元のコードに合わせて残しています
   Check,     // 未使用ですが元のコードに合わせて残しています
@@ -15,6 +15,7 @@ import {
 import { Button } from '../components/ui/button';
 import { ProfileSettingsModal, SystemSettingsModal } from '../components/SettingsModals';
 import { toast } from 'sonner';
+import { meetingApi } from '../api/meeting';
 
 // 変更点: LiveKitクライアントからトラック作成関数をインポート
 import { createLocalVideoTrack, LocalVideoTrack } from 'livekit-client';
@@ -34,14 +35,14 @@ export function MeetingSetup() {
   const [mics, setMics] = useState<MediaDeviceInfo[]>([]);
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
   const [speakers, setSpeakers] = useState<MediaDeviceInfo[]>([]);
-  
+
   const [selectedMicId, setSelectedMicId] = useState<string>('');
   const [selectedCameraId, setSelectedCameraId] = useState<string>('');
   const [selectedSpeakerId, setSelectedSpeakerId] = useState<string>('');
 
   // 変更点: プレビュー用のトラックを管理
   const [previewTrack, setPreviewTrack] = useState<LocalVideoTrack | null>(null);
-  
+
   const [userName, setUserName] = useState(() => {
     const savedUser = localStorage.getItem('uri-tomo-user');
     return savedUser ? savedUser.split('@')[0] : 'Me';
@@ -131,10 +132,10 @@ export function MeetingSetup() {
       try {
         // デバイスラベルを取得するために権限をリクエスト
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        
+
         // デバイス一覧を取得
         const devices = await navigator.mediaDevices.enumerateDevices();
-        
+
         const micList = devices.filter(d => d.kind === 'audioinput');
         const camList = devices.filter(d => d.kind === 'videoinput');
         const spkList = devices.filter(d => d.kind === 'audiooutput');
@@ -214,24 +215,17 @@ export function MeetingSetup() {
 
       let token, url;
 
-      if (window.electron) {
-        console.log(`[MeetingSetup] Requesting token for room: ${id}`);
-        const result = await window.electron.invokeApi('get-livekit-token', {
-          roomName: id || 'default-room',
-          participantName: userName
-        });
-        token = result.token;
-        url = result.url;
-      } else {
-        console.warn("Electron not detected.");
-        throw new Error("Electron 環境で実行してください。");
-      }
+      // 백엔드로부터 LiveKit 토큰 및 URL 요청
+      console.log(`[MeetingSetup] Requesting token for room_id: ${id}`);
+      const data = await meetingApi.getLivekitToken(id || '');
+      token = data.token;
+      url = data.url;
 
       if (!token || !url) throw new Error('Token generation failed');
 
-      navigate(`/active-meeting/${id}`, { 
-        state: { 
-          livekitToken: token, 
+      navigate(`/active-meeting/${id}`, {
+        state: {
+          livekitToken: token,
           livekitUrl: url,
           participantName: userName,
           initialMicOn: isMicOn,
@@ -240,7 +234,7 @@ export function MeetingSetup() {
           audioDeviceId: selectedMicId,
           videoDeviceId: selectedCameraId,
           audioOutputDeviceId: selectedSpeakerId
-        } 
+        }
       });
 
     } catch (error) {
@@ -287,12 +281,12 @@ export function MeetingSetup() {
                 {/* 変更点: 実際の映像を表示するvideo要素 */}
                 <div className="absolute inset-0 flex items-center justify-center">
                   {isVideoOn ? (
-                    <video 
-                      ref={videoRef} 
+                    <video
+                      ref={videoRef}
                       className="w-full h-full object-cover transform -scale-x-100" // 鏡像反転
-                      autoPlay 
-                      muted 
-                      playsInline 
+                      autoPlay
+                      muted
+                      playsInline
                     />
                   ) : (
                     <div className="w-full h-full bg-gray-800 flex flex-col items-center justify-center gap-4">
@@ -332,9 +326,8 @@ export function MeetingSetup() {
               <div className="p-4 bg-gray-50 rounded-xl border-2 border-gray-200">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-4">
-                    <div className={`p-3 rounded-full ${
-                      isMicOn ? 'bg-green-100' : 'bg-red-100'
-                    }`}>
+                    <div className={`p-3 rounded-full ${isMicOn ? 'bg-green-100' : 'bg-red-100'
+                      }`}>
                       {isMicOn ? (
                         <Mic className="h-6 w-6 text-green-600" />
                       ) : (
@@ -350,11 +343,10 @@ export function MeetingSetup() {
                   </div>
                   <button
                     onClick={() => setIsMicOn(!isMicOn)}
-                    className={`px-6 py-2 rounded-lg font-semibold transition-colors ${
-                      isMicOn
-                        ? 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                        : 'bg-red-500 hover:bg-red-600 text-white'
-                    }`}
+                    className={`px-6 py-2 rounded-lg font-semibold transition-colors ${isMicOn
+                      ? 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                      : 'bg-red-500 hover:bg-red-600 text-white'
+                      }`}
                   >
                     {isMicOn ? 'オフにする' : 'オンにする'}
                   </button>
@@ -369,7 +361,7 @@ export function MeetingSetup() {
                   >
                     {mics.map((mic) => (
                       <option key={mic.deviceId} value={mic.deviceId}>
-                        {mic.label || `Microphone ${mic.deviceId.slice(0,5)}...`}
+                        {mic.label || `Microphone ${mic.deviceId.slice(0, 5)}...`}
                       </option>
                     ))}
                   </select>
@@ -380,9 +372,8 @@ export function MeetingSetup() {
               <div className="p-4 bg-gray-50 rounded-xl border-2 border-gray-200">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-4">
-                    <div className={`p-3 rounded-full ${
-                      isVideoOn ? 'bg-green-100' : 'bg-red-100'
-                    }`}>
+                    <div className={`p-3 rounded-full ${isVideoOn ? 'bg-green-100' : 'bg-red-100'
+                      }`}>
                       {isVideoOn ? (
                         <Video className="h-6 w-6 text-green-600" />
                       ) : (
@@ -398,11 +389,10 @@ export function MeetingSetup() {
                   </div>
                   <button
                     onClick={() => setIsVideoOn(!isVideoOn)}
-                    className={`px-6 py-2 rounded-lg font-semibold transition-colors ${
-                      isVideoOn
-                        ? 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                        : 'bg-red-500 hover:bg-red-600 text-white'
-                    }`}
+                    className={`px-6 py-2 rounded-lg font-semibold transition-colors ${isVideoOn
+                      ? 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                      : 'bg-red-500 hover:bg-red-600 text-white'
+                      }`}
                   >
                     {isVideoOn ? 'オフにする' : 'オンにする'}
                   </button>
@@ -417,7 +407,7 @@ export function MeetingSetup() {
                   >
                     {cameras.map((camera) => (
                       <option key={camera.deviceId} value={camera.deviceId}>
-                        {camera.label || `Camera ${camera.deviceId.slice(0,5)}...`}
+                        {camera.label || `Camera ${camera.deviceId.slice(0, 5)}...`}
                       </option>
                     ))}
                   </select>
@@ -428,9 +418,8 @@ export function MeetingSetup() {
               <div className="p-4 bg-gray-50 rounded-xl border-2 border-gray-200">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-4">
-                    <div className={`p-3 rounded-full ${
-                      isAudioOn ? 'bg-green-100' : 'bg-red-100'
-                    }`}>
+                    <div className={`p-3 rounded-full ${isAudioOn ? 'bg-green-100' : 'bg-red-100'
+                      }`}>
                       {isAudioOn ? (
                         <Volume2 className="h-6 w-6 text-green-600" />
                       ) : (
@@ -446,11 +435,10 @@ export function MeetingSetup() {
                   </div>
                   <button
                     onClick={() => setIsAudioOn(!isAudioOn)}
-                    className={`px-6 py-2 rounded-lg font-semibold transition-colors ${
-                      isAudioOn
-                        ? 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                        : 'bg-red-500 hover:bg-red-600 text-white'
-                    }`}
+                    className={`px-6 py-2 rounded-lg font-semibold transition-colors ${isAudioOn
+                      ? 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                      : 'bg-red-500 hover:bg-red-600 text-white'
+                      }`}
                   >
                     {isAudioOn ? 'オフにする' : 'オンにする'}
                   </button>
@@ -467,7 +455,7 @@ export function MeetingSetup() {
                     {speakers.length > 0 ? (
                       speakers.map((audio) => (
                         <option key={audio.deviceId} value={audio.deviceId}>
-                          {audio.label || `Speaker ${audio.deviceId.slice(0,5)}...`}
+                          {audio.label || `Speaker ${audio.deviceId.slice(0, 5)}...`}
                         </option>
                       ))
                     ) : (
@@ -481,7 +469,10 @@ export function MeetingSetup() {
             {/* Join Button */}
             <div className="flex items-center justify-center gap-4">
               <Button
-                onClick={() => navigate(`/meeting/${id}`)}
+                onClick={() => {
+                  console.log('Setup cancelled, returning to room detail');
+                  navigate(`/meeting/${id}`);
+                }}
                 variant="outline"
                 className="px-8 py-6 text-lg font-semibold border-2 border-gray-300 hover:bg-gray-50"
               >

@@ -5,6 +5,9 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Card } from '../components/ui/card';
+import { toast } from 'sonner';
+import { authApi } from '../api/auth';
+// import { useGoogleLogin } from '@react-oauth/google';
 
 interface LoginProps {
   onLogin: (email: string) => void;
@@ -17,23 +20,160 @@ export function Login({ onLogin }: LoginProps) {
   const [language, setLanguage] = useState<'ja' | 'ko' | 'en'>('ja');
   const [showLanguageMenu, setShowLanguageMenu] = useState(false);
   const [showFindAccount, setShowFindAccount] = useState(false);
+
+  // 회원가입용 State
   const [newAccountEmail, setNewAccountEmail] = useState('');
   const [newAccountPassword, setNewAccountPassword] = useState('');
   const [newAccountConfirmPassword, setNewAccountConfirmPassword] = useState('');
   const [newAccountName, setNewAccountName] = useState('');
+  const [signupLanguage, setSignupLanguage] = useState<'ja' | 'ko' | 'en'>('ja');
+
+  // 계정 찾기용 State
   const [findAccountEmail, setFindAccountEmail] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (email) {
-      onLogin(email);
+  // 공통: 로그인 성공 처리 핸들러
+  const handleAuthSuccess = async (response: any) => {
+    // 1. 토큰 저장
+    localStorage.setItem('uri-tomo-token', response.access_token);
+
+    let profile = response.user;
+
+    // 만약 응답에 user 정보가 없고 user_id만 있는 경우, /me 호출하여 가져옴
+    if (!profile && response.user_id) {
+      try {
+        profile = await authApi.getMe();
+      } catch (e) {
+        console.error('Failed to fetch user profile after login:', e);
+        profile = {
+          id: response.user_id,
+          email: email || newAccountEmail || 'user@uri-tomo.local',
+          display_name: email?.split('@')[0] || newAccountEmail?.split('@')[0] || 'User'
+        };
+      }
+    }
+
+    if (profile) {
+      const userName = profile.name || profile.display_name;
+      localStorage.setItem('uri-tomo-user-profile', JSON.stringify({
+        name: userName,
+        email: profile.email,
+        avatar: profile.picture
+      }));
+
+      // 2. 환영 메시지 (다국어 처리)
+      const welcomeMsg = {
+        ja: `${userName}さん、ようこそ！`,
+        ko: `${userName}님 환영합니다!`,
+        en: `Welcome, ${userName}!`
+      };
+      toast.success(welcomeMsg[language] || welcomeMsg.en);
+
+      // 3. 상위 컴포넌트에 알림
+      onLogin(profile.email);
     }
   };
 
-  const handleSocialLogin = (provider: string) => {
-    // Social login simulation
-    onLogin(`${provider}-user@example.com`);
+  // [수정됨] 일반 이메일 로그인 핸들러
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) return;
+
+    console.group('🔐 [Login Attempt]');
+    console.log('📧 Email:', email);
+    console.log('⏱️ Timestamp:', new Date().toISOString());
+    console.groupEnd();
+
+    try {
+      // 백엔드로 로그인 요청
+      const response = await authApi.login({ email, password });
+
+      console.group('✅ [Login Success]');
+      console.log('🎟️ Token received:', response.access_token ? 'Yes' : 'No');
+      console.log('🆔 User ID:', response.user_id);
+      console.log('⏱️ Timestamp:', new Date().toISOString());
+      console.groupEnd();
+
+      await handleAuthSuccess(response);
+    } catch (error) {
+      console.group('❌ [Login Failed]');
+      console.error('📧 Email:', email);
+      console.error('🚨 Error:', error);
+      console.log('⏱️ Timestamp:', new Date().toISOString());
+      console.groupEnd();
+      // 에러 메시지는 apiClient 인터셉터에서 toast로 출력됨
+    }
   };
+
+  // [수정됨] 회원가입 핸들러
+  const handleSignUp = async () => {
+    if (!newAccountEmail || !newAccountPassword || newAccountPassword !== newAccountConfirmPassword) return;
+
+    // 언어 코드 매핑
+    const langMap = {
+      ja: 'jp',
+      ko: 'kr',
+      en: 'en'
+    };
+
+    const signupData = {
+      name: newAccountName,
+      email: newAccountEmail,
+      password: newAccountPassword,
+      lang: langMap[signupLanguage] || 'jp'
+    };
+
+    console.group('📝 [Sign Up Attempt]');
+    console.log('🌐 Endpoint: POST /signup');
+    console.log('📦 Request Body:', signupData);
+    console.log('📄 JSON String:', JSON.stringify(signupData));
+    console.log('⏱️ Timestamp:', new Date().toISOString());
+    console.groupEnd();
+
+    try {
+      const response = await authApi.signup(signupData);
+
+      console.group('✅ [Sign Up Success]');
+      console.log('🎟️ Token received:', response.access_token ? 'Yes' : 'No');
+      console.log('🆔 User ID:', response.user_id);
+      console.log('⏱️ Timestamp:', new Date().toISOString());
+      console.groupEnd();
+
+      // 회원가입 성공 후 자동 로그인 처리
+      await handleAuthSuccess(response);
+      setIsCreatingAccount(false);
+
+    } catch (error) {
+      console.group('❌ [Sign Up Failed]');
+      console.error('👤 Name:', newAccountName);
+      console.error('📧 Email:', newAccountEmail);
+      console.error('🚨 Error:', error);
+      console.log('⏱️ Timestamp:', new Date().toISOString());
+      console.groupEnd();
+    }
+  };
+
+  // 소셜 로그인 핸들러
+  const handleSocialLogin = async (provider: string) => {
+    // Line 버튼을 누르면 게스트로 로그인
+    if (provider === 'line' || provider === 'kakao' || provider === 'google') {
+      toast.info(`${provider} ログインは準備中です。\n(${provider} login is coming soon)`);
+      return;
+    }
+  };
+
+  /*
+  const googleLogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      try {
+         const response = await authApi.loginWithGoogle(tokenResponse.access_token);
+         handleAuthSuccess(response);
+      } catch (e) {
+         console.error('Google Login Failed:', e);
+      }
+    },
+    onError: () => toast.error('Google Login Failed'),
+  });
+  */
 
   const translations = {
     ja: {
@@ -41,11 +181,11 @@ export function Login({ onLogin }: LoginProps) {
       subtitle: 'あなたのフレンドリーなAIチームメイト',
       email: 'Email',
       password: 'Password',
-      login: 'Login',
-      createAccount: 'Create account',
-      findAccount: 'Find account',
+      login: 'ログイン', // Login -> ログイン
+      createAccount: 'アカウント作成',
+      findAccount: 'アカウントを探す',
       or: 'または',
-      socialLogin: 'Google, Line, Kakao でログイン',
+      socialLogin: 'Lineボタンでゲストログイン可能',
       description: '日韓バイリンガルミーティングのための',
       description2: 'リアルタイム翻訳AIツール',
       name: '名前',
@@ -69,7 +209,7 @@ export function Login({ onLogin }: LoginProps) {
       createAccount: '계정 만들기',
       findAccount: '계정 찾기',
       or: '또는',
-      socialLogin: 'Google, Line, Kakao로 로그인',
+      socialLogin: 'Line 버튼으로 게스트 로그인 가능',
       description: '한일 바이링구얼 미팅을 위한',
       description2: '실시간 번역 AI 도구',
       name: '이름',
@@ -93,7 +233,7 @@ export function Login({ onLogin }: LoginProps) {
       createAccount: 'Create account',
       findAccount: 'Find account',
       or: 'or',
-      socialLogin: 'Login with Google, Line, Kakao',
+      socialLogin: 'Click Line button for Guest Login',
       description: 'Real-time Translation AI Tool',
       description2: 'for Japanese-Korean Bilingual Meetings',
       name: 'Name',
@@ -141,9 +281,8 @@ export function Login({ onLogin }: LoginProps) {
                     className="absolute right-0 top-full mt-2 w-40 bg-white border border-gray-200 rounded-lg shadow-lg z-10 overflow-hidden"
                   >
                     <button
-                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors ${
-                        language === 'ja' ? 'bg-yellow-50 font-semibold' : ''
-                      }`}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors ${language === 'ja' ? 'bg-yellow-50 font-semibold' : ''
+                        }`}
                       onClick={() => {
                         setLanguage('ja');
                         setShowLanguageMenu(false);
@@ -152,9 +291,8 @@ export function Login({ onLogin }: LoginProps) {
                       🇯🇵 日本語
                     </button>
                     <button
-                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors ${
-                        language === 'ko' ? 'bg-yellow-50 font-semibold' : ''
-                      }`}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors ${language === 'ko' ? 'bg-yellow-50 font-semibold' : ''
+                        }`}
                       onClick={() => {
                         setLanguage('ko');
                         setShowLanguageMenu(false);
@@ -163,9 +301,8 @@ export function Login({ onLogin }: LoginProps) {
                       🇰🇷 한국어
                     </button>
                     <button
-                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors ${
-                        language === 'en' ? 'bg-yellow-50 font-semibold' : ''
-                      }`}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors ${language === 'en' ? 'bg-yellow-50 font-semibold' : ''
+                        }`}
                       onClick={() => {
                         setLanguage('en');
                         setShowLanguageMenu(false);
@@ -221,6 +358,7 @@ export function Login({ onLogin }: LoginProps) {
           transition={{ duration: 0.6, delay: 0.5 }}
         >
           <Card className="p-8 shadow-2xl border-2 border-yellow-200">
+            {/* 일반 로그인 폼 */}
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-gray-700">
@@ -295,11 +433,13 @@ export function Login({ onLogin }: LoginProps) {
                 </div>
               </div>
 
+              {/* 소셜 로그인 버튼들 */}
               <div className="mt-6 grid grid-cols-3 gap-3">
+                {/* 주석 처리
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => handleSocialLogin('google')}
+                  onClick={() => googleLogin()}
                   className="flex items-center justify-center px-4 py-3 border-2 border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition-all"
                 >
                   <svg className="h-6 w-6" viewBox="0 0 24 24">
@@ -321,12 +461,19 @@ export function Login({ onLogin }: LoginProps) {
                     />
                   </svg>
                 </motion.button>
+                */}
+
+                {/* 임시 플레이스홀더: 구글 버튼 자리를 비워두거나 회색 처리 */}
+                <div className="flex items-center justify-center px-4 py-3 border-2 border-gray-100 rounded-lg bg-gray-50 opacity-50 cursor-not-allowed">
+                  <span className="text-xs text-gray-400">Google (준비중)</span>
+                </div>
 
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => handleSocialLogin('line')}
-                  className="flex items-center justify-center px-4 py-3 border-2 border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition-all"
+                  className="flex items-center justify-center px-4 py-3 border-2 border-green-400 rounded-lg shadow-md hover:bg-green-50 transition-all bg-green-50/30"
+                  title="Click for Guest Login"
                 >
                   <svg className="h-6 w-6" viewBox="0 0 24 24">
                     <path
@@ -374,7 +521,7 @@ export function Login({ onLogin }: LoginProps) {
         </motion.p>
       </main>
 
-      {/* Create Account Modal */}
+      {/* Create Account Modal (회원가입 모달) */}
       {isCreatingAccount && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -475,6 +622,26 @@ export function Login({ onLogin }: LoginProps) {
                 )}
               </div>
 
+              {/* Language Selection for Signup */}
+              <div>
+                <Label htmlFor="signupLang" className="text-sm font-semibold text-gray-700 mb-2 block">
+                  Preferred Language (언어 설정)
+                </Label>
+                <div className="relative">
+                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <select
+                    id="signupLang"
+                    value={signupLanguage}
+                    onChange={(e) => setSignupLanguage(e.target.value as 'ja' | 'ko' | 'en')}
+                    className="w-full pl-10 pr-4 py-2 border rounded-md focus:ring-2 focus:ring-yellow-400 border-gray-300 bg-white"
+                  >
+                    <option value="ja">🇯🇵 日本語</option>
+                    <option value="ko">🇰🇷 한국어</option>
+                    <option value="en">🇺🇸 English</option>
+                  </select>
+                </div>
+              </div>
+
               {/* Info Box */}
               <div className="bg-gradient-to-r from-yellow-50 to-amber-50 p-4 rounded-lg border border-yellow-200">
                 <div className="flex items-start gap-2">
@@ -506,11 +673,7 @@ export function Login({ onLogin }: LoginProps) {
                 {t.cancel}
               </Button>
               <Button
-                onClick={() => {
-                  if (newAccountEmail && newAccountPassword && newAccountPassword === newAccountConfirmPassword) {
-                    onLogin(newAccountEmail);
-                  }
-                }}
+                onClick={handleSignUp}
                 disabled={!newAccountEmail || !newAccountPassword || newAccountPassword !== newAccountConfirmPassword}
                 className="px-6 py-2 bg-gradient-to-r from-yellow-400 to-amber-400 hover:from-yellow-500 hover:to-amber-500 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -521,7 +684,7 @@ export function Login({ onLogin }: LoginProps) {
         </motion.div>
       )}
 
-      {/* Find Account Modal */}
+      {/* Find Account Modal (계정 찾기 모달 - 백엔드 미구현 상태이므로 기존 유지) */}
       {showFindAccount && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -602,6 +765,7 @@ export function Login({ onLogin }: LoginProps) {
               <Button
                 onClick={() => {
                   if (findAccountEmail) {
+                    // 백엔드 연결 전이므로 alert 유지
                     alert(t.resetLinkSent);
                     setShowFindAccount(false);
                     setFindAccountEmail('');
