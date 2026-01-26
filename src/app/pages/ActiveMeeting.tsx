@@ -53,7 +53,7 @@ interface ChatMessage {
   message: string;
   timestamp: Date;
   isAI?: boolean;
-  fileUrl?: string; // 추가
+  fileUrl?: string; //追加
 }
 
 interface TermExplanation {
@@ -549,7 +549,7 @@ function ActiveMeetingContent({
               <Panel defaultSize={30} minSize={25} maxSize={50}>
                 <div className="h-full bg-white flex flex-col">
                   {/* Uri-Tomo Header */}
-                  <div className="bg-gradient-to-r from-yellow-400 to-amber-400 px-4 py-3 flex-shrink-0">
+                  <div className="bg-gradient-to-r from-yellow-400 to-amber-400 px-4 py-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
@@ -570,9 +570,18 @@ function ActiveMeetingContent({
                     </div>
                   </div>
 
-                  {/* Description Section */}
-                  <div className="border-b border-gray-200 bg-white max-h-48 overflow-y-auto flex-shrink-0">
-                    <div className="sticky top-0 bg-white px-4 pt-4 pb-2 border-b border-gray-100"><div className="flex items-center gap-2"><Bot className="h-4 w-4 text-yellow-600" /><h4 className="font-bold text-gray-900 text-sm">Description</h4><span className="text-xs text-gray-500">({termExplanations.length}件の用語解説)</span></div></div>
+                  {/* Description Section - Term Explanations */}
+                  <div className="border-b border-gray-200 bg-white max-h-48 overflow-y-auto">
+                    <div className="sticky top-0 bg-white px-4 pt-4 pb-2 border-b border-gray-100">
+                      <div className="flex items-center gap-2">
+                        <Bot className="h-4 w-4 text-yellow-600" />
+                        <h4 className="font-bold text-gray-900 text-sm">Description</h4>
+                        <span className="text-xs text-gray-500">
+                          ({termExplanations.length}件の用語解説)
+                        </span>
+                      </div>
+                    </div>
+                    
                     <div className="p-4">
                       {termExplanations.length === 0 ? (
                         <div className="text-center py-4">
