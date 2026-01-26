@@ -5,7 +5,8 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import {
   Video, VideoOff, Mic, MicOff, PhoneOff, Users, Settings, Bot,
   MessageSquare, Languages, Pin, ChevronRight, ChevronLeft,
-  MonitorUp, Paperclip, Smile, AlertTriangle, Clock, Send, Monitor, X
+  MonitorUp, Paperclip, Smile, AlertTriangle, Clock, Send, Monitor, X,
+  User as UserIcon
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { ProfileSettingsModal, SystemSettingsModal } from '../components/SettingsModals';
@@ -16,6 +17,7 @@ import {
   LiveKitRoom,
   VideoTrack,
   useTracks,
+  useParticipants,
   RoomAudioRenderer,
   useRoomContext,
   useLocalParticipant
@@ -34,14 +36,7 @@ const ensureMediaPermission = async () => {
 };
 
 // --- Types ---
-interface Participant {
-  id: string;
-  name: string;
-  isVideoOn: boolean;
-  isMuted: boolean;
-  isSpeaking?: boolean;
-  language?: 'ja' | 'ko';
-}
+
 
 interface TranslationLog {
   id: string;
@@ -89,6 +84,9 @@ function ActiveMeetingContent({
   const room = useRoomContext();
   const { localParticipant } = useLocalParticipant();
 
+  // 参加者リスト（リアルタイム更新）
+  const participants = useParticipants();
+
   // Tracks
   const tracks = useTracks([Track.Source.Camera, Track.Source.ScreenShare], { onlySubscribed: false });
   const localCameraTrack = tracks.find(t => t.participant.isLocal && t.source === Track.Source.Camera);
@@ -125,9 +123,15 @@ function ActiveMeetingContent({
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [translationLogs, setTranslationLogs] = useState<TranslationLog[]>([]);
   const [termExplanations, setTermExplanations] = useState<TermExplanation[]>([]);
-  const [participants, setParticipants] = useState<Participant[]>([]);
+  // const [participants, setParticipants] = useState<Participant[]>([]); // Removed in favor of useParticipants
   const [meetingTitle] = useState('日韓プロジェクト会議');
   const [startTime] = useState(new Date());
+
+  // Refs
+  const chatInputRef = useRef<HTMLInputElement>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
 
   // Profile Settings State
   const [showProfileSettings, setShowProfileSettings] = useState(false);
@@ -176,13 +180,16 @@ function ActiveMeetingContent({
     }
   }, [room, room?.state, meetingId]);
 
+  // --- Logic 2: State Sync with LiveKit ---
   useEffect(() => {
     if (localParticipant) {
       setIsScreenSharing(localParticipant.isScreenShareEnabled);
+      setIsMicOn(localParticipant.isMicrophoneEnabled);
+      setIsVideoOn(localParticipant.isCameraEnabled);
     }
-  }, [localParticipant, tracks]);
+  }, [localParticipant, tracks, localParticipant?.isMicrophoneEnabled, localParticipant?.isCameraEnabled]);
 
-  // --- Logic 2: Device Sync ---
+  // --- Logic 3: Device Sync ---
   useEffect(() => {
     if (!showSettings) return;
     const syncDevices = async () => {
@@ -197,9 +204,9 @@ function ActiveMeetingContent({
         let tm = room.getActiveDevice('audioinput') || selectedMicId;
         let tc = room.getActiveDevice('videoinput') || selectedCameraId;
         let ts = room.getActiveDevice('audiooutput') || selectedSpeakerId;
-        if (micList.length && !micList.find(d => d.deviceId === tm)) tm = micList[0].deviceId;
-        if (camList.length && !camList.find(d => d.deviceId === tc)) tc = camList[0].deviceId;
-        if (spkList.length && !spkList.find(d => d.deviceId === ts)) ts = spkList[0].deviceId;
+        if (micList.length && !micList.find(d => d.deviceId === tm)) tm = micList[0]?.deviceId;
+        if (camList.length && !camList.find(d => d.deviceId === tc)) tc = camList[0]?.deviceId;
+        if (spkList.length && !spkList.find(d => d.deviceId === ts)) ts = spkList[0]?.deviceId;
         setSelectedMicId(tm); setSelectedCameraId(tc); setSelectedSpeakerId(ts);
       }
     };
@@ -255,15 +262,29 @@ function ActiveMeetingContent({
   };
 
   const toggleMic = async () => {
+    if (!localParticipant) return;
     const newState = !isMicOn;
-    setIsMicOn(newState);
-    if (localParticipant) await localParticipant.setMicrophoneEnabled(newState);
+    try {
+      await localParticipant.setMicrophoneEnabled(newState);
+      setIsMicOn(newState);
+      toast(newState ? "マイクをオンにしました" : "マイクをミュートしました");
+    } catch (e) {
+      console.error(e);
+      toast.error("マイクの切り替えに失敗しました");
+    }
   };
 
   const toggleVideo = async () => {
+    if (!localParticipant) return;
     const newState = !isVideoOn;
-    setIsVideoOn(newState);
-    if (localParticipant) await localParticipant.setCameraEnabled(newState);
+    try {
+      await localParticipant.setCameraEnabled(newState);
+      setIsVideoOn(newState);
+      toast(newState ? "カメラをオンにしました" : "カメラをオフにしました");
+    } catch (e) {
+      console.error(e);
+      toast.error("カメラの切り替えに失敗しました");
+    }
   };
 
   // --- Chat & Meeting Actions ---
@@ -286,8 +307,8 @@ function ActiveMeetingContent({
           id: Date.now().toString(),
           sender: currentUser.name,
           // messageには表示用の名前、fileUrlに実際のリンクを持たせる
-          message: file.name, 
-          fileUrl: fileUrl, 
+          message: file.name,
+          fileUrl: fileUrl,
           timestamp: new Date(),
           isAI: false
         };
@@ -297,15 +318,10 @@ function ActiveMeetingContent({
     input.click();
   };
 
-  // ★ここに追加   --- Refs ---
-  const chatInputRef = useRef<HTMLInputElement>(null);
   // 2. メッセージが追加されたらスクロールする処理
-  const chatEndRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
-  // 3.ファイル添付
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ★ここに追加: スタンプ選択ハンドラ
   const handleStickerSelect = (sticker: string) => {
@@ -319,7 +335,7 @@ function ActiveMeetingContent({
   // ★ここに追加: 会議終了確定ハンドラ
   const confirmEndMeeting = () => {
     const endTime = new Date();
-      
+
     // 会議の包括的なレコードを作成
     const meetingRecord = {
       id: Date.now().toString(),
@@ -332,10 +348,10 @@ function ActiveMeetingContent({
           name: currentUser.name,
           language: currentUser.language,
         },
-        ...participants.map(p => ({
-          id: p.id,
-          name: p.name,
-          language: p.language || 'ja',
+        ...participants.filter(p => !p.isLocal).map(p => ({
+          id: p.sid,
+          name: p.identity || 'Unknown',
+          language: 'unknown',
         })),
       ],
       translationLog: translationLogs.map(log => ({
@@ -401,10 +417,6 @@ function ActiveMeetingContent({
     };
     loadProfile();
 
-    setParticipants([
-      { id: '1', name: 'User A', isVideoOn: true, isMuted: false, language: 'ja' },
-      { id: '2', name: 'User B', isVideoOn: true, isMuted: false, language: 'ko' }
-    ]);
     setTranslationLogs([
       { id: '1', speaker: 'User A', originalText: 'プロジェクトの進捗について報告します', translatedText: '프로젝트 진행 상황에 대해 보고합니다', originalLang: 'ja', timestamp: new Date(Date.now() - 5000) },
       { id: '2', speaker: 'User B', originalText: '감사합니다. 다음 단계에 대해 논의하고 싶습니다', translatedText: 'ありがとうございます。次のステップについて議論したいです', originalLang: 'ko', timestamp: new Date(Date.now() - 3000) },
@@ -425,6 +437,7 @@ function ActiveMeetingContent({
         timestamp: new Date(Date.now() - 2000),
       },
     ]);
+
     const timer = setInterval(() => setDuration(p => p + 1), 1000);
     return () => clearInterval(timer);
   }, []);
@@ -508,6 +521,7 @@ function ActiveMeetingContent({
                       <VideoTrack
                         trackRef={track}
                         className={`w-full h-full ${track.source === Track.Source.ScreenShare ? 'object-contain bg-black' : 'object-cover'}`}
+                        style={track.source === Track.Source.Camera ? { transform: 'scaleX(-1)' } : undefined}
                       />
                     </div>
                     <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
@@ -606,7 +620,7 @@ function ActiveMeetingContent({
                                     {term.explanation}
                                   </p>
                                   <p className="text-xs text-yellow-700 mt-1">
-                                    ��� {term.detectedFrom}
+                                    💬 {term.detectedFrom}
                                   </p>
                                 </div>
                               </div>
@@ -621,11 +635,10 @@ function ActiveMeetingContent({
                   <div className="flex border-b border-gray-200 bg-gray-50">
                     <button
                       onClick={() => setActiveTab('translation')}
-                      className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors ${
-                        activeTab === 'translation'
-                          ? 'bg-white text-yellow-600 border-b-2 border-yellow-400'
-                          : 'text-gray-600 hover:text-gray-900'
-                      }`}
+                      className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors ${activeTab === 'translation'
+                        ? 'bg-white text-yellow-600 border-b-2 border-yellow-400'
+                        : 'text-gray-600 hover:text-gray-900'
+                        }`}
                     >
                       <div className="flex items-center justify-center gap-2">
                         <Languages className="h-4 w-4" />
@@ -634,11 +647,10 @@ function ActiveMeetingContent({
                     </button>
                     <button
                       onClick={() => setActiveTab('chat')}
-                      className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors ${
-                        activeTab === 'chat'
-                          ? 'bg-white text-yellow-600 border-b-2 border-yellow-400'
-                          : 'text-gray-600 hover:text-gray-900'
-                      }`}
+                      className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors ${activeTab === 'chat'
+                        ? 'bg-white text-yellow-600 border-b-2 border-yellow-400'
+                        : 'text-gray-600 hover:text-gray-900'
+                        }`}
                     >
                       <div className="flex items-center justify-center gap-2">
                         <MessageSquare className="h-4 w-4" />
@@ -647,11 +659,10 @@ function ActiveMeetingContent({
                     </button>
                     <button
                       onClick={() => setActiveTab('members')}
-                      className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors ${
-                        activeTab === 'members'
-                          ? 'bg-white text-yellow-600 border-b-2 border-yellow-400'
-                          : 'text-gray-600 hover:text-gray-900'
-                      }`}
+                      className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors ${activeTab === 'members'
+                        ? 'bg-white text-yellow-600 border-b-2 border-yellow-400'
+                        : 'text-gray-600 hover:text-gray-900'
+                        }`}
                     >
                       <div className="flex items-center justify-center gap-2">
                         <Users className="h-4 w-4" />
@@ -661,8 +672,8 @@ function ActiveMeetingContent({
                   </div>
 
                   {/* Tab Content */}
-                  <div className="flex-1 overflow-hidden">
-                    {/* RT Translation Tab */}
+                  <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+                    {/* Translation Tab */}
                     {activeTab === 'translation' && (
                       <div className="h-full flex flex-col bg-gradient-to-b from-yellow-50 to-white">
                         {/* Scrollable Translation Log */}
@@ -688,17 +699,16 @@ function ActiveMeetingContent({
                                   key={log.id}
                                   initial={{ opacity: 0, y: 20, scale: 0.95 }}
                                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                                  transition={{ 
+                                  transition={{
                                     delay: index * 0.05,
                                     type: "spring",
                                     stiffness: 300,
                                     damping: 20
                                   }}
-                                  className={`bg-white rounded-xl p-4 shadow-md border-2 transition-all ${
-                                    index === translationLogs.length - 1
-                                      ? 'border-yellow-400 ring-2 ring-yellow-200'
-                                      : 'border-gray-200 hover:border-yellow-300'
-                                  }`}
+                                  className={`bg-white rounded-xl p-4 shadow-md border-2 transition-all ${index === translationLogs.length - 1
+                                    ? 'border-yellow-400 ring-2 ring-yellow-200'
+                                    : 'border-gray-200 hover:border-yellow-300'
+                                    }`}
                                 >
                                   {/* Header: Speaker and Time */}
                                   <div className="flex items-center justify-between mb-3">
@@ -778,18 +788,16 @@ function ActiveMeetingContent({
                                   key={msg.id}
                                   initial={{ opacity: 0, y: 10 }}
                                   animate={{ opacity: 1, y: 0 }}
-                                  className={`flex ${
-                                    msg.sender === currentUser.name ? 'justify-end' : 'justify-start'
-                                  }`}
+                                  className={`flex ${msg.sender === currentUser.name ? 'justify-end' : 'justify-start'
+                                    }`}
                                 >
                                   <div
-                                    className={`max-w-[80%] rounded-lg p-3 ${
-                                      msg.isAI
-                                        ? 'bg-gradient-to-r from-yellow-100 to-amber-100 border border-yellow-300'
-                                        : msg.sender === currentUser.name
+                                    className={`max-w-[80%] rounded-lg p-3 ${msg.isAI
+                                      ? 'bg-gradient-to-r from-yellow-100 to-amber-100 border border-yellow-300'
+                                      : msg.sender === currentUser.name
                                         ? 'bg-blue-600 text-white'
                                         : 'bg-gray-100'
-                                    }`}
+                                      }`}
                                   >
                                     <div className="flex items-center gap-2 mb-1">
                                       {msg.isAI && (
@@ -813,11 +821,10 @@ function ActiveMeetingContent({
                                           href={msg.fileUrl}
                                           target="_blank"
                                           rel="noopener noreferrer"
-                                          className={`flex items-center gap-2 p-2 rounded border transition-all hover:opacity-90 active:scale-95 ${
-                                            msg.sender === currentUser.name
+                                          className={`flex items-center gap-2 p-2 rounded border transition-all hover:opacity-90 active:scale-95 ${msg.sender === currentUser.name
                                             ? 'bg-blue-700 border-blue-500 text-white shadow-sm'
                                             : 'bg-white border-gray-200 text-blue-600 shadow-sm'
-                                          }`}
+                                            }`}
                                         >
                                           <Paperclip className="h-4 w-4 flex-shrink-0" />
                                           <span className="underline font-medium truncate max-w-[180px]">
@@ -837,7 +844,7 @@ function ActiveMeetingContent({
                             </>
                           )}
                         </div>
-                        
+
                         {/* Chat Input */}
                         <div className="border-t border-gray-200 p-4">
                           {/* Sticker Picker */}
@@ -867,16 +874,16 @@ function ActiveMeetingContent({
                                       const newValue = chatInput + sticker;
                                       setChatInput(newValue);
                                       setShowStickerPicker(false);
-                                    // ★重要: 入力欄にフォーカスを戻す
-                                    setTimeout(() => {
-                                      if (chatInputRef.current) {
-                                        // 入力欄にフォーカスを戻す
-                                        chatInputRef.current.focus();
-                                        // カーソルを末尾（新しい文字列の長さ）に移動
-                                        const len = newValue.length;
-                                        chatInputRef.current.setSelectionRange(len, len);
-                                      }
-                                    }, 0);
+                                      // ★重要: 入力欄にフォーカスを戻す
+                                      setTimeout(() => {
+                                        if (chatInputRef.current) {
+                                          // 入力欄にフォーカスを戻す
+                                          chatInputRef.current.focus();
+                                          // カーソルを末尾（新しい文字列の長さ）に移動
+                                          const len = newValue.length;
+                                          chatInputRef.current.setSelectionRange(len, len);
+                                        }
+                                      }, 0);
                                     }}
                                     className="text-3xl p-3 rounded-lg hover:bg-yellow-200 transition-all transform hover:scale-110 active:scale-95"
                                     title="スタンプの追加"
@@ -887,7 +894,7 @@ function ActiveMeetingContent({
                               </div>
                             </motion.div>
                           )}
-                          
+
                           <div className="flex gap-2">
                             {/* File Attach Button */}
                             <button
@@ -897,20 +904,19 @@ function ActiveMeetingContent({
                             >
                               <Paperclip className="h-5 w-5" />
                             </button>
-                            
+
                             {/* Sticker Button */}
                             <button
                               onClick={() => setShowStickerPicker(!showStickerPicker)}
-                              className={`p-2 rounded-lg transition-colors ${
-                                showStickerPicker
-                                  ? 'bg-yellow-200 text-yellow-700'
-                                  : 'text-gray-600 hover:bg-gray-100'
-                              }`}
+                              className={`p-2 rounded-lg transition-colors ${showStickerPicker
+                                ? 'bg-yellow-200 text-yellow-700'
+                                : 'text-gray-600 hover:bg-gray-100'
+                                }`}
                               title="スタンプを選択"
                             >
                               <Smile className="h-5 w-5" />
                             </button>
-                            
+
                             <input
                               ref={chatInputRef} // ★2. ここに ref を追加
                               type="text"
@@ -937,10 +943,10 @@ function ActiveMeetingContent({
                       <div className="h-full overflow-y-auto p-4">
                         <div className="mb-4">
                           <h4 className="text-sm font-bold text-gray-900 mb-1">
-                            参加者 ({participants.length + 2}人)
+                            参加者 ({participants.length + 1}人)
                           </h4>
                           <p className="text-xs text-gray-500">
-                            {participants.filter(p => !p.isMuted).length + (isMicOn ? 1 : 0)}人が発言中
+                            {participants.filter(p => p.isMicrophoneEnabled).length + (isMicOn ? 1 : 0)}人が発言中
                           </p>
                         </div>
 
@@ -1004,36 +1010,41 @@ function ActiveMeetingContent({
                             </div>
                           </motion.div>
 
-                          {/* Other Participants */}
-                          {participants.map((participant, index) => (
+                          {/* Other Participants (Remote) */}
+                          {participants.filter(p => !p.isLocal).map((participant, index) => (
                             <motion.div
-                              key={participant.id}
+                              key={participant.sid}
                               initial={{ opacity: 0, x: -10 }}
                               animate={{ opacity: 1, x: 0 }}
                               transition={{ delay: (index + 2) * 0.05 }}
                               className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200"
                             >
                               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center text-white font-bold">
-                                {participant.name.charAt(0)}
+                                {(participant.identity || '?').charAt(0).toUpperCase()}
                               </div>
                               <div className="flex-1">
                                 <div className="flex items-center gap-2">
                                   <span className="text-sm font-semibold text-gray-900">
-                                    {participant.name}
+                                    {participant.identity || 'Unknown'}
                                   </span>
                                   <span className="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded">
-                                    {participant.language === 'ja' ? 'JA' : 'KO'}
+                                    REMOTE
                                   </span>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-1">
-                                {!participant.isMuted ? (
+                              <div className="flex items-center gap-2">
+                                {participant.isMicrophoneEnabled ? (
                                   <>
                                     <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                                     <Mic className="h-4 w-4 text-green-600" />
                                   </>
                                 ) : (
                                   <MicOff className="h-4 w-4 text-red-600" />
+                                )}
+                                {participant.isCameraEnabled ? (
+                                  <Video className="h-4 w-4 text-green-600" />
+                                ) : (
+                                  <VideoOff className="h-4 w-4 text-red-600" />
                                 )}
                               </div>
                             </motion.div>
@@ -1225,7 +1236,7 @@ function ActiveMeetingContent({
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="grid grid-cols-3 gap-3">
                     <div className="bg-white rounded-lg p-3 text-center border border-gray-200">
                       <Users className="h-4 w-4 text-gray-600 mx-auto mb-1" />

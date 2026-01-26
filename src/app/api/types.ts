@@ -59,3 +59,13 @@ export interface MainDataResponse {
   user_friends: Friend[];
   rooms: Room[];
 }
+
+// LiveKit 관련 타입
+export interface LivekitTokenRequest {
+  room_id: string;
+}
+
+export interface LivekitTokenResponse {
+  url: string;
+  token: string;
+}

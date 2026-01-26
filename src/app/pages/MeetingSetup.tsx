@@ -215,24 +215,11 @@ export function MeetingSetup() {
 
       let token, url;
 
-      if (window.electron) {
-        // Room Name check: Is it dynamic or fixed?
-        const targetRoomName = (id || 'default-room').trim();
-        console.log(`[MeetingSetup] Requesting token for room with NAME: "${targetRoomName}" (Original ID params: ${id})`);
-
-        // Send Room ID to Backend for logging/verification
-        // meetingApi.sendRoomId(targetRoomName).catch(e => console.error("Failed to send room ID to backend:", e));
-
-        const result = await window.electron.invokeApi('get-livekit-token', {
-          roomName: targetRoomName,
-          participantName: userName.trim()
-        });
-        token = result.token;
-        url = result.url;
-      } else {
-        console.warn("Electron not detected.");
-        throw new Error("Electron 環境で実行してください。");
-      }
+      // 백엔드로부터 LiveKit 토큰 및 URL 요청
+      console.log(`[MeetingSetup] Requesting token for room_id: ${id}`);
+      const data = await meetingApi.getLivekitToken(id || '');
+      token = data.token;
+      url = data.url;
 
       if (!token || !url) throw new Error('Token generation failed');
 
