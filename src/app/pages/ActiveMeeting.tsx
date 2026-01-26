@@ -22,7 +22,7 @@ import {
   useRoomContext,
   useLocalParticipant
 } from '@livekit/components-react';
-import { Track } from 'livekit-client';
+import { Track, RoomEvent } from 'livekit-client';
 import '@livekit/components-styles';
 import { useTranslation } from '../hooks/useTranslation';
 
@@ -181,6 +181,36 @@ function ActiveMeetingContent({
         });
     }
   }, [room, room?.state, meetingId]);
+
+  // --- Logic 1.6: Track Subscription Logging and Manual Audio Attach ---
+  useEffect(() => {
+    if (!room) return;
+
+    const handleTrackSubscribed = (
+      track: any,
+      publication: any,
+      participant: any
+    ) => {
+      console.log(
+        `[LK] TrackSubscribed: kind=${track.kind}, participant=${participant.identity}, trackSid=${publication.trackSid}`
+      );
+
+      // 원격 오디오 트랙을 DOM에 수동으로 붙이기
+      if (track.kind === Track.Kind.Audio) {
+        const audioElement = track.attach();
+        audioElement.setAttribute('data-participant', participant.identity);
+        audioElement.setAttribute('data-track-sid', publication.trackSid);
+        document.body.appendChild(audioElement);
+        console.log(`[LK] Audio track attached to DOM for ${participant.identity}`);
+      }
+    };
+
+    room.on(RoomEvent.TrackSubscribed, handleTrackSubscribed);
+
+    return () => {
+      room.off(RoomEvent.TrackSubscribed, handleTrackSubscribed);
+    };
+  }, [room]);
 
   // --- Logic 2: State Sync with LiveKit ---
   useEffect(() => {
@@ -1321,8 +1351,15 @@ export function ActiveMeeting() {
       onDisconnected={() => navigate('/')}
       onError={(err) => {
         console.error("❌ LiveKit Connection Error:", err);
-        // Specifically catch the DNS error pattern from the user report if possible, though it's usually generic here
         toast.error(`${t('connectionError')}: ${err.message || t('connectionError')}`);
+      }}
+      connect={true}
+      options={{
+        adaptiveStream: true,
+        dynacast: true,
+      }}
+      connectOptions={{
+        autoSubscribe: true,
       }}
       className="h-screen w-full bg-gray-900"
     >
@@ -1334,6 +1371,6 @@ export function ActiveMeeting() {
         livekitToken={livekitToken}
       />
       <RoomAudioRenderer />
-    </LiveKitRoom>
+    </LiveKitRoom >
   );
 }
