@@ -33,6 +33,7 @@ export interface SignupRequest {
   name: string;
   email: string;
   password: string;
+  lang: string;
 }
 
 // 메인 페이지 데이터 관련 타입

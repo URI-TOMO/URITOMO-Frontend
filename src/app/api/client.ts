@@ -19,7 +19,8 @@ const apiClient: AxiosInstance = axios.create({
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem('uri-tomo-token');
-    if (token) {
+    // 회원가입(/signup) 및 로그인(/general_login) 요청 시에는 토큰을 보내지 않음
+    if (token && !config.url?.includes('/signup') && !config.url?.includes('/general_login')) {
       config.headers.Authorization = `Bearer ${token}`;
     }
 

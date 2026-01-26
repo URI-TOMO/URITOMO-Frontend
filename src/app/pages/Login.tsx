@@ -26,6 +26,7 @@ export function Login({ onLogin }: LoginProps) {
   const [newAccountPassword, setNewAccountPassword] = useState('');
   const [newAccountConfirmPassword, setNewAccountConfirmPassword] = useState('');
   const [newAccountName, setNewAccountName] = useState('');
+  const [signupLanguage, setSignupLanguage] = useState<'ja' | 'ko' | 'en'>('ja');
 
   // 계정 찾기용 State
   const [findAccountEmail, setFindAccountEmail] = useState('');
@@ -107,10 +108,18 @@ export function Login({ onLogin }: LoginProps) {
   const handleSignUp = async () => {
     if (!newAccountEmail || !newAccountPassword || newAccountPassword !== newAccountConfirmPassword) return;
 
+    // 언어 코드 매핑
+    const langMap = {
+      ja: 'jp',
+      ko: 'kr',
+      en: 'en'
+    };
+
     const signupData = {
       name: newAccountName,
       email: newAccountEmail,
-      password: newAccountPassword
+      password: newAccountPassword,
+      lang: langMap[signupLanguage] || 'jp'
     };
 
     console.group('📝 [Sign Up Attempt]');
@@ -611,6 +620,26 @@ export function Login({ onLogin }: LoginProps) {
                 {newAccountPassword && newAccountConfirmPassword && newAccountPassword !== newAccountConfirmPassword && (
                   <p className="text-xs text-red-500 mt-1">{t.passwordMatch}</p>
                 )}
+              </div>
+
+              {/* Language Selection for Signup */}
+              <div>
+                <Label htmlFor="signupLang" className="text-sm font-semibold text-gray-700 mb-2 block">
+                  Preferred Language (언어 설정)
+                </Label>
+                <div className="relative">
+                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <select
+                    id="signupLang"
+                    value={signupLanguage}
+                    onChange={(e) => setSignupLanguage(e.target.value as 'ja' | 'ko' | 'en')}
+                    className="w-full pl-10 pr-4 py-2 border rounded-md focus:ring-2 focus:ring-yellow-400 border-gray-300 bg-white"
+                  >
+                    <option value="ja">🇯🇵 日本語</option>
+                    <option value="ko">🇰🇷 한국어</option>
+                    <option value="en">🇺🇸 English</option>
+                  </select>
+                </div>
               </div>
 
               {/* Info Box */}
