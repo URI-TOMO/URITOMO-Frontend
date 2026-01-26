@@ -227,6 +227,20 @@ function ActiveMeetingContent({
             // チャット欄にも翻訳を表示したい場合（オプション）
             // setChatMessages(...) 
 
+          } else if (msg.type === 'explanation' && msg.data) {
+            // 用語解説の受信
+            const payload = msg.data;
+            const content = payload.data || {};
+            const newExpl: TermExplanation = {
+              id: payload.id || Date.now().toString(),
+              term: content.term || '解説',
+              explanation: content.explanation || content.text || '詳細情報なし',
+              detectedFrom: content.detectedFrom || 'AI',
+              timestamp: new Date(payload.created_at || Date.now())
+            };
+            setTermExplanations(prev => [newExpl, ...prev]);
+            toast.success('新しい用語解説が追加されました');
+
           } else if (msg.type === 'session_connected') {
             console.log('🎉 Session connected:', msg.data);
           } else if (msg.type === 'error') {
