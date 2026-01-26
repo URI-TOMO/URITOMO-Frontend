@@ -53,6 +53,19 @@ export interface Room {
   name: string;
 }
 
+export interface RoomMember {
+  id: string;
+  name: string;
+  status: string;
+}
+
+export interface RoomDetailResponse {
+  id: string;
+  name: string;
+  members: RoomMember[];
+  participant_count: number;
+}
+
 export interface MainDataResponse {
   user: MainUser;
   friend_count: number;

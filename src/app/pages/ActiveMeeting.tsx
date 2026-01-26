@@ -22,7 +22,7 @@ import {
   useRoomContext,
   useLocalParticipant
 } from '@livekit/components-react';
-import { Track } from 'livekit-client';
+import { Track, RoomEvent } from 'livekit-client';
 import '@livekit/components-styles';
 import { useTranslation } from '../hooks/useTranslation';
 
@@ -184,6 +184,29 @@ function ActiveMeetingContent({
         });
     }
   }, [room, room?.state, meetingId]);
+
+  // --- Logic 1.6: Track Subscription Event Listener ---
+  useEffect(() => {
+    if (!room) return;
+
+    const handleTrackSubscribed = (track: any, publication: any, participant: any) => {
+      console.log('[LK] TrackSubscribed:', track.kind, participant.identity, publication.trackSid);
+
+      // 오디오 트랙을 DOM에 자동 attach
+      if (track.kind === Track.Kind.Audio) {
+        console.log('[LK] Attaching audio track from participant:', participant.identity);
+        const audioElement = track.attach();
+        audioElement.setAttribute('data-participant-identity', participant.identity);
+        document.body.appendChild(audioElement);
+      }
+    };
+
+    room.on(RoomEvent.TrackSubscribed, handleTrackSubscribed);
+
+    return () => {
+      room.off(RoomEvent.TrackSubscribed, handleTrackSubscribed);
+    };
+  }, [room]);
 
   // --- Logic 2: State Sync with LiveKit ---
   useEffect(() => {
@@ -1316,6 +1339,9 @@ export function ActiveMeeting() {
     <LiveKitRoom
       token={livekitToken}
       serverUrl={livekitUrl}
+      connectOptions={{
+        autoSubscribe: true,
+      }}
       video={initialVideoOn ? { deviceId: videoDeviceId } : false}
       audio={initialMicOn ? { deviceId: audioDeviceId } : false}
       onDisconnected={() => navigate('/')}
