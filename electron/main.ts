@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, desktopCapturer, session } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import { AccessToken } from 'livekit-server-sdk'
+
 import dotenv from 'dotenv'
 
 dotenv.config()
@@ -80,20 +80,7 @@ app.on('activate', () => {
 app.whenReady().then(() => {
   createWindow()
 
-  // LiveKitトークン発行
-  ipcMain.handle('get-livekit-token', async (_, { roomName, participantName }) => {
-    try {
-      const apiKey = process.env.LIVEKIT_API_KEY
-      const apiSecret = process.env.LIVEKIT_API_SECRET
-      const wsUrl = process.env.LIVEKIT_URL
-      if (!apiKey || !apiSecret || !wsUrl) throw new Error('LiveKit env missing')
-      const at = new AccessToken(apiKey, apiSecret, { identity: participantName })
-      at.addGrant({ roomJoin: true, room: roomName, canPublish: true, canSubscribe: true })
-      return { token: await at.toJwt(), url: wsUrl }
-    } catch (error) {
-      console.error(error); throw error;
-    }
-  })
+
 
   // ▼▼▼ Reactからの選択結果を受け取る処理 ▼▼▼
   ipcMain.handle('select-screen-source', async (_, sourceId: string | null) => {

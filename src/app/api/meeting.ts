@@ -16,8 +16,9 @@ export const meetingApi = {
      * POST /meeting/livekit/token
      */
     getLivekitToken: async (roomId: string): Promise<LivekitTokenResponse> => {
-        const response = await apiClient.post<LivekitTokenResponse>('/meeting/livekit/token', { room_id: roomId });
-        return response.data;
+        // apiClient interceptor already returns response.data
+        const data = await apiClient.post<LivekitTokenResponse>('/meeting/livekit/token', { room_id: roomId });
+        return data as unknown as LivekitTokenResponse;
     },
 
     // 기존 meetingApi 메서드가 있다면 여기에 유지
