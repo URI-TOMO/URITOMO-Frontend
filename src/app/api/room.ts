@@ -1,5 +1,5 @@
 import apiClient from './client';
-import { RoomDetailResponse } from './types';
+import { RoomDetailResponse, AddRoomMemberResponse } from './types';
 
 export const roomApi = {
     /**
@@ -8,5 +8,13 @@ export const roomApi = {
      */
     getRoomDetail: async (roomId: string): Promise<RoomDetailResponse> => {
         return apiClient.get(`/rooms/${roomId}`);
+    },
+
+    /**
+     * 룸에 새로운 멤버를 추가합니다.
+     * POST /rooms/{room_id}/members
+     */
+    addMember: async (roomId: string, email: string): Promise<AddRoomMemberResponse> => {
+        return apiClient.post(`/rooms/${roomId}/members`, { email });
     },
 };

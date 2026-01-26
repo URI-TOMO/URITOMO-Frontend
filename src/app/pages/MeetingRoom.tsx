@@ -59,6 +59,7 @@ interface Participant {
   name: string;
   avatar?: string;
   isOnline: boolean;
+  locale?: string;
 }
 
 interface Room {
@@ -119,9 +120,79 @@ export function MeetingRoom() {
   const [editedAvatarType, setEditedAvatarType] = useState<'emoji' | 'image' | 'none'>('none');
   const { t, language: systemLanguage, setSystemLanguage } = useTranslation();
 
+  // Add Member Modal State
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [newMemberEmail, setNewMemberEmail] = useState('');
+  const [isAddingMember, setIsAddingMember] = useState(false);
+
   const handleJoinMeeting = () => {
     // 토큰 발급 없이 바로 장치 설정(Setup) 화면으로 이동
     navigate(`/meeting-setup/${id}`);
+  };
+
+  // Helper: Get country flag from locale
+  const getCountryFlag = (locale?: string): string => {
+    if (!locale) return '🌐';
+    const lowerLocale = locale.toLowerCase();
+    if (lowerLocale === 'ja' || lowerLocale === 'jp') return '🇯🇵';
+    if (lowerLocale === 'ko' || lowerLocale === 'kr') return '🇰🇷';
+    if (lowerLocale === 'en' || lowerLocale === 'us') return '🇺🇸';
+    return '🌐';
+  };
+
+  // Handle Add Member
+  const handleAddMember = async () => {
+    if (!newMemberEmail.trim()) {
+      toast.error(t('enterEmail'));
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newMemberEmail)) {
+      toast.error(t('validEmail'));
+      return;
+    }
+
+    if (!id) {
+      toast.error('Room ID is missing');
+      return;
+    }
+
+    setIsAddingMember(true);
+
+    try {
+      const result = await roomApi.addMember(id, newMemberEmail);
+
+      // Add new member to participants list
+      const newParticipant: Participant = {
+        id: result.id,
+        name: result.name,
+        isOnline: false,
+        locale: result.locale,
+      };
+
+      setParticipants([...participants, newParticipant]);
+
+      toast.success(t('memberAdded') || 'メンバーが追加されました', {
+        description: `${result.name} (${result.locale})`,
+        duration: 4000,
+      });
+
+      setShowAddMemberModal(false);
+      setNewMemberEmail('');
+    } catch (error: any) {
+      console.error('Failed to add member:', error);
+
+      if (error.response?.status === 404) {
+        toast.error(t('emailNotFound') || 'そのメールアドレスのユーザーが見つかりませんでした');
+      } else if (error.response?.status === 409) {
+        toast.error(t('memberAlreadyExists') || 'このメンバーはすでにルームに存在します');
+      } else {
+        toast.error(t('memberAddFailed') || 'メンバーの追加に失敗しました');
+      }
+    } finally {
+      setIsAddingMember(false);
+    }
   };
 
   // Listen for sidebar button clicks
@@ -184,6 +255,7 @@ export function MeetingRoom() {
           id: m.id,
           name: m.name,
           isOnline: m.status === 'online',
+          locale: m.locale,
         }));
         setParticipants(apiParticipants);
         setRoomDetail({ participant_count: data.participant_count });
@@ -709,9 +781,7 @@ export function MeetingRoom() {
           {/* Add Member Button */}
           <div className="px-4 py-4 border-b border-gray-200">
             <button
-              onClick={() => {
-                toast.info(t('memberAddPending'));
-              }}
+              onClick={() => setShowAddMemberModal(true)}
               className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-yellow-400 to-amber-400 hover:from-yellow-500 hover:to-amber-500 text-white font-semibold rounded-lg transition-all"
             >
               <UserPlus className="h-5 w-5" />
@@ -733,8 +803,8 @@ export function MeetingRoom() {
                   </p>
                   <p className="text-sm text-gray-600">{t('you')}</p>
                   <div className="flex items-center gap-1 mt-1">
-                    <div className="w-2 h-2 bg-green-500 rounded-full" />
-                    <span className="text-xs text-gray-600">{t('online')}</span>
+                    <span className="text-lg">{getCountryFlag(systemLanguage)}</span>
+                    <span className="text-xs text-gray-600">{systemLanguage?.toUpperCase() || 'N/A'}</span>
                   </div>
                 </div>
               </div>
@@ -755,8 +825,8 @@ export function MeetingRoom() {
                       {participant.name}
                     </p>
                     <div className="flex items-center gap-1 mt-1">
-                      <div className="w-2 h-2 bg-green-500 rounded-full" />
-                      <span className="text-xs text-gray-600">{t('online')}</span>
+                      <span className="text-lg">{getCountryFlag(participant.locale)}</span>
+                      <span className="text-xs text-gray-600">{participant.locale?.toUpperCase() || 'N/A'}</span>
                     </div>
                   </div>
                 </div>
@@ -785,8 +855,8 @@ export function MeetingRoom() {
                           {participant.name}
                         </p>
                         <div className="flex items-center gap-1 mt-1">
-                          <div className="w-2 h-2 bg-gray-400 rounded-full" />
-                          <span className="text-xs text-gray-500">{t('offline')}</span>
+                          <span className="text-lg opacity-60">{getCountryFlag(participant.locale)}</span>
+                          <span className="text-xs text-gray-500">{participant.locale?.toUpperCase() || 'N/A'}</span>
                         </div>
                       </div>
                     </div>
@@ -803,6 +873,64 @@ export function MeetingRoom() {
             </p>
           </div>
         </motion.div>
+      )}
+
+      {/* Add Member Modal */}
+      {showAddMemberModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full"
+          >
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <UserPlus className="h-6 w-6 text-yellow-600" />
+                {t('addMember')}
+              </h2>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label htmlFor="member-email" className="text-base font-semibold text-gray-900 block mb-2">
+                  {t('email')}
+                </label>
+                <Input
+                  id="member-email"
+                  type="email"
+                  value={newMemberEmail}
+                  onChange={(e) => setNewMemberEmail(e.target.value)}
+                  placeholder="member@example.com"
+                  className="w-full"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && !isAddingMember) {
+                      handleAddMember();
+                    }
+                  }}
+                />
+              </div>
+            </div>
+            <div className="p-6 border-t border-gray-200 flex gap-3">
+              <Button
+                onClick={() => {
+                  setShowAddMemberModal(false);
+                  setNewMemberEmail('');
+                }}
+                variant="outline"
+                className="flex-1"
+                disabled={isAddingMember}
+              >
+                {t('cancel')}
+              </Button>
+              <Button
+                onClick={handleAddMember}
+                className="flex-1 bg-gradient-to-r from-yellow-400 to-amber-400 hover:from-yellow-500 hover:to-amber-500 text-white"
+                disabled={isAddingMember}
+              >
+                {isAddingMember ? t('adding') || '追加中...' : t('add')}
+              </Button>
+            </div>
+          </motion.div>
+        </div>
       )}
     </main>
   );
