@@ -146,7 +146,7 @@ function ActiveMeetingContent({
   const [editedUserName, setEditedUserName] = useState('');
   const [editedUserAvatar, setEditedUserAvatar] = useState('');
   const [editedAvatarType, setEditedAvatarType] = useState<'emoji' | 'image' | 'none'>('none');
-  const [systemLanguage, setSystemLanguage] = useState<'ja' | 'ko' | 'en'>('ja');
+
   // 会議開始時間を記録
   const [startTime] = useState(new Date());
 

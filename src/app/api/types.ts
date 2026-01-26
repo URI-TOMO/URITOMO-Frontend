@@ -57,6 +57,7 @@ export interface RoomMember {
   id: string;
   name: string;
   status: string;
+  locale?: string;
 }
 
 export interface RoomDetailResponse {
@@ -64,6 +65,17 @@ export interface RoomDetailResponse {
   name: string;
   members: RoomMember[];
   participant_count: number;
+}
+
+// Room member management
+export interface AddRoomMemberRequest {
+  email: string;
+}
+
+export interface AddRoomMemberResponse {
+  id: string;
+  name: string;
+  locale: string;
 }
 
 export interface MainDataResponse {
