@@ -13,13 +13,7 @@ export const authApi = {
     return apiClient.post<any, AuthResponse>('/google', { token: idToken });
   },
 
-  /**
-   * 내 정보 가져오기 (토큰 검증용)
-   * GET /auth/me
-   */
-  getMe: async (): Promise<UserProfile> => {
-    return apiClient.get<any, UserProfile>('/example/token/me');
-  },
+
 
   /**
    * 토큰 갱신

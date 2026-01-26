@@ -39,17 +39,13 @@ export function Login({ onLogin }: LoginProps) {
     let profile = response.user;
 
     // 만약 응답에 user 정보가 없고 user_id만 있는 경우, /me 호출하여 가져옴
+    // 만약 응답에 user 정보가 없고 user_id만 있는 경우, fallback 프로필 생성
     if (!profile && response.user_id) {
-      try {
-        profile = await authApi.getMe();
-      } catch (e) {
-        console.error('Failed to fetch user profile after login:', e);
-        profile = {
-          id: response.user_id,
-          email: email || newAccountEmail || 'user@uri-tomo.local',
-          display_name: email?.split('@')[0] || newAccountEmail?.split('@')[0] || 'User'
-        };
-      }
+      profile = {
+        id: response.user_id,
+        email: email || newAccountEmail || 'user@uri-tomo.local',
+        display_name: email?.split('@')[0] || newAccountEmail?.split('@')[0] || 'User'
+      };
     }
 
     if (profile) {

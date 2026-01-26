@@ -1,4 +1,4 @@
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { User, Settings, Globe, Image as ImageIcon } from 'lucide-react';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -282,8 +282,8 @@ export function SystemSettingsModal({
                     toast.success(t('languageChanged'));
                   }}
                   className={`w-full p-4 rounded-lg border-2 transition-all flex items-center gap-3 ${language === lang.value
-                      ? 'border-yellow-400 bg-yellow-50'
-                      : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-yellow-400 bg-yellow-50'
+                    : 'border-gray-200 hover:border-gray-300'
                     }`}
                 >
                   <span className="text-2xl">{lang.flag}</span>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import {
   Video, VideoOff, Mic, MicOff, PhoneOff, Users, Settings, Bot,
@@ -84,7 +84,7 @@ function ActiveMeetingContent({
   const navigate = useNavigate();
   const room = useRoomContext();
   const { localParticipant } = useLocalParticipant();
-  const { t } = useTranslation();
+  const { t, language: systemLanguage, setSystemLanguage } = useTranslation();
 
   // 参加者リスト（リアルタイム更新）
   const participants = useParticipants();
@@ -145,7 +145,7 @@ function ActiveMeetingContent({
   const [editedUserName, setEditedUserName] = useState('');
   const [editedUserAvatar, setEditedUserAvatar] = useState('');
   const [editedAvatarType, setEditedAvatarType] = useState<'emoji' | 'image' | 'none'>('none');
-  const { t, language: systemLanguage, setSystemLanguage } = useTranslation();
+
 
   // --- Logic 1: Screen Share IPC Listener ---
   useEffect(() => {

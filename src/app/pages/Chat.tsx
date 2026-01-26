@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Send, Bot, User, Search, Smile, Paperclip } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { Input } from '../components/ui/input';
 import { toast } from 'sonner';
 import { ProfileSettingsModal, SystemSettingsModal } from '../components/SettingsModals';
