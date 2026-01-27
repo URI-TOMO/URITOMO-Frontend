@@ -19,7 +19,7 @@ export function Layout({ onLogout }: LayoutProps) {
     const loadProfile = () => {
       const savedUser = localStorage.getItem('uri-tomo-user');
       const savedProfile = localStorage.getItem('uri-tomo-user-profile');
-      
+
       if (savedProfile) {
         try {
           const profile = JSON.parse(savedProfile);
@@ -75,7 +75,7 @@ export function Layout({ onLogout }: LayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-amber-50 to-orange-50 flex">
+    <div className="h-screen overflow-hidden bg-gradient-to-br from-yellow-50 via-amber-50 to-orange-50 flex">
       {/* Fixed Sidebar */}
       <Sidebar
         userName={userName}
@@ -86,7 +86,7 @@ export function Layout({ onLogout }: LayoutProps) {
         onSettingsClick={handleSettingsClick}
         onLogout={onLogout}
       />
-      
+
       {/* Page Content */}
       <Outlet />
     </div>

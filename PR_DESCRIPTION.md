@@ -1,31 +1,49 @@
-# Pull Request: LiveKit Session Integration & Stabilization
+# 🚀 Pull Request: UI Improvements, Guest Login, and Refactoring
 
-## 📝 Summary
-This PR finalizes the integration between the Frontend (LiveKit) and the Backend for live session management. It ensures that the LiveKit token and session details are correctly synchronized with the backend upon joining a meeting. It also includes critical bug fixes for crash prevention and API path corrections.
+## 📝 Description
+This PR introduces several UI enhancements and refactors the authentication flow to support a Guest Login mechanism. It also includes layout fixes to ensure consistent screen ratios and improves the user experience for system settings.
 
-## 🚀 Key Changes
+## ✨ Key Changes
 
-### 1. Backend Integration for Live Sessions
-- **Updated API Client**: Modified `src/app/api/meeting.ts` to support sending the **LiveKit Token** in the body of the `startLiveSession` request.
-  - Endpoint: `POST /meeting/{room_id}/live-sessions/{session_id}`
-  - Payload: `{ token: "..." }`
-- **Active Meeting Logic**: Updated `src/app/pages/ActiveMeeting.tsx` to pass the `livekitToken` down to the content component and invoke the `startLiveSession` API correctly once the LiveKit room is connected (SID available).
+### 1. 🏠 Room Settings UI (Visual Implementation)
+- Added a settings modal within the Meeting Room.
+- Included UI options for:
+  - **Change Room Name** (Placeholder)
+  - **Leave Room** (Placeholder)
+- *Note: These features are currently UI-only and do not interact with the backend yet.*
 
-### 2. Bug Fixes & Stability
-- **Fixed Crash in Meeting Setup**: Resolved a `TypeError: meetingApi.sendRoomId is not a function` in `MeetingSetup.tsx` by removing the call to the deprecated/deleted validation method.
-- **Socket Safety**: Patched `src/app/meeting/hooks/useMeetingSocket.ts` to prevent `Cannot read properties of null` errors by ensuring the socket instance exists before attempting to attach event listeners.
-- **Navigation Fix**: Improved the "Cancel" button behavior in `MeetingSetup` to log the action and navigate back to the meeting detail page safely.
+### 2. 🔐 Authentication Refactoring
+- **Social Login Updates**:
+  - Removed actual social login integrations.
+  - Clicking "Google" or "Line" buttons now triggers a **Guest Login**.
+  - **Guest Credentials**:
+    - Name: `Guest`
+    - Email: `guest@guest.com`
+    - Password: `guest`
+    - Preferred Language: `en` (English)
+- **Developer Shortcut**:
+  - Added a small, hidden **(Dev)** button below the social login options.
+  - Allows developers to bypass authentication and log in immediately for testing purposes.
 
-### 3. Debugging & Logging
-- **Room Name Verification**: Added logs in `MeetingSetup.tsx` to output the exact room name and ID being requested, ensuring clarity on dynamic vs fixed room IDs.
-- **PowerShell/Console Sync**: Confirmed that API requests and responses are correctly logged to both the Browser Console and the Electron Main Process (PowerShell), facilitating easier debugging of backend communication.
+### 3. 🎨 Layout & UI Fixes
+- **Screen Ratio Standardization**:
+  - Modified the main layout (`min-h-screen` → `h-screen overflow-hidden`) to prevent unwanted scrolling and maintain a consistent aspect ratio across different screen sizes.
+  - Fixed issues where the screen ratio would shift dynamically when the contact list grew.
+- **Login Screen**:
+  - Centered and resized Google and Line login buttons for better visual balance.
 
-## 🧪 Testing Checklist
-- [x] Join a meeting via `MeetingSetup`.
-- [x] Verify "Connecting to Live Session backend" log appears in Console.
-- [x] Verify `POST /meeting/.../live-sessions/...` request is sent with `token` in the body (visible in Network tab/PowerShell).
-- [x] Confirm no "sendRoomId is not a function" crash occurs.
-- [x] Confirm `useMeetingSocket` does not throw null pointer exceptions.
+### 4. ⚙️ System Settings Logic
+- **Language Selection**:
+  - Refactored the language change logic.
+  - Language settings now apply **only after clicking the "Save" button** (previously applied immediately).
+  - The confirmation push notification (Toast) is now displayed in the **newly selected language** upon saving.
 
-## 📸 Impact
-These changes ensure a stable and verifiable connection flow between the frontend React application, the LiveKit WebRTC server, and our custom Backend API, laying the groundwork for reliable real-time features like AI translation logging.
+## 📸 Screenshots
+*(Optional: specific screenshots can be added here)*
+
+## ✅ Testing Instructions
+1. **Room Settings**: Enter a room, click the settings (gear) icon, and verify the UI appears.
+2. **Guest Login**: On the login screen, click the Google or Line button key and verify you are logged in as "Guest" with English language settings.
+3. **Dev Login**: Click the small "(Dev)" text below the buttons to verify instant login.
+4. **Layout**: Check the Home screen with multiple contacts to ensure the outer layout remains fixed.
+5. **Language Settings**: Go to System Settings, change the language, and click Save. Verify the toast message appears in the new language.

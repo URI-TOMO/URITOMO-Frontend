@@ -123,15 +123,31 @@ export function Login({ onLogin }: LoginProps) {
     }
   };
 
-  // 소셜 로그인 핸들러
+  // 소셜 로그인 핸들러 -> 게스트 로그인으로 변경
   const handleSocialLogin = async (provider: string) => {
-    // Line 버튼을 누르면 게스트로 로그인
-    if (provider === 'line') {
-      toast.info(t('lineLoginComingSoon'));
-      return;
-    }
-    if (provider === 'kakao' || provider === 'google') {
-      // Placeholder for now
+    console.log(`Provider: ${provider} - Processing Guest Login`);
+
+    // 게스트 정보 설정
+    const guestCredentials = {
+      email: 'guest@guest.com',
+      password: 'guest'
+    };
+
+    try {
+      toast.loading(t('processingGuestLogin') || '게스트 정보로 로그인 중...', { id: 'guest-login' });
+
+      // 게스트 선호 언어: English
+      setSystemLanguage('en');
+
+      // 게스트 정보로 로그인 시도
+      const response = await authApi.login(guestCredentials);
+      await handleAuthSuccess(response);
+
+      toast.dismiss('guest-login');
+    } catch (error) {
+      console.error('Guest Login Error:', error);
+      toast.dismiss('guest-login');
+      // 에러 메시지는 apiClient 인터셉터에서 toast로 출력됨
     }
   };
 
@@ -317,17 +333,28 @@ export function Login({ onLogin }: LoginProps) {
               </div>
 
               {/* 소셜 로그인 버튼들 */}
-              <div className="mt-6 grid grid-cols-3 gap-3">
-                {/* 임시 플레이스홀더: 구글 버튼 자리를 비워두거나 회색 처리 */}
-                <div className="flex items-center justify-center px-4 py-3 border-2 border-gray-100 rounded-lg bg-gray-50 opacity-50 cursor-not-allowed">
-                  <span className="text-xs text-gray-400">{t('loginGoogleComingSoon')}</span>
-                </div>
+              <div className="mt-6 flex justify-center gap-4">
+                {/* Google Button (Now performs Guest Login) */}
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => handleSocialLogin('google')}
+                  className="flex-1 flex items-center justify-center px-4 py-3 border-2 border-gray-100 rounded-lg bg-white shadow-sm hover:bg-gray-50 transition-all max-w-[140px]"
+                  title="Guest Login with Google design"
+                >
+                  <svg className="h-6 w-6" viewBox="0 0 48 48">
+                    <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z" />
+                    <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z" />
+                    <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z" />
+                    <path fill="#1976D2" d="M43.611,20.083L43.611,20.083L42,20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z" />
+                  </svg>
+                </motion.button>
 
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => handleSocialLogin('line')}
-                  className="flex items-center justify-center px-4 py-3 border-2 border-green-400 rounded-lg shadow-md hover:bg-green-50 transition-all bg-green-50/30"
+                  className="flex-1 flex items-center justify-center px-4 py-3 border-2 border-green-400 rounded-lg shadow-md hover:bg-green-50 transition-all bg-green-50/30 max-w-[140px]"
                   title="Click for Guest Login"
                 >
                   <svg className="h-6 w-6" viewBox="0 0 24 24">
@@ -337,29 +364,34 @@ export function Login({ onLogin }: LoginProps) {
                     />
                   </svg>
                 </motion.button>
-
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => handleSocialLogin('kakao')}
-                  className="flex items-center justify-center px-4 py-3 border-2 border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition-all"
-                >
-                  <svg className="h-6 w-6" viewBox="0 0 24 24">
-                    <path
-                      fill="#FEE500"
-                      d="M12 2C6.48 2 2 5.58 2 10c0 2.89 1.97 5.43 4.93 6.91-.2.74-.64 2.38-.73 2.75-.11.46.17.45.36.33.15-.1 2.48-1.66 3.55-2.37.61.08 1.24.13 1.89.13 5.52 0 10-3.58 10-8S17.52 2 12 2z"
-                    />
-                    <path
-                      fill="#3C1E1E"
-                      d="M8.5 11.5h2v1h-2v-1zm3.5 0h2v1h-2v-1z"
-                    />
-                  </svg>
-                </motion.button>
               </div>
 
-              <p className="mt-4 text-center text-sm text-gray-500">
-                {t('socialLogin')}
-              </p>
+              {/* Developer Bypass Button */}
+              <div className="mt-4 flex justify-center">
+                <button
+                  onClick={async () => {
+                    const devProfile = {
+                      id: 'dev-user-id',
+                      name: 'Developer',
+                      email: 'dev@local',
+                      display_name: 'Dev User',
+                      picture: ''
+                    };
+
+                    localStorage.setItem('uri-tomo-token', 'dev-bypass-token');
+                    localStorage.setItem('uri-tomo-user-profile', JSON.stringify(devProfile));
+                    setSystemLanguage('ja'); // Dev default
+
+                    toast.success('Developer Mode Login');
+                    onLogin(devProfile.email);
+                  }}
+                  className="text-[10px] text-gray-300 hover:text-gray-400 transition-colors cursor-pointer"
+                  title="Dev Bypass"
+                >
+                  (Dev)
+                </button>
+              </div>
+
             </div>
           </Card>
         </motion.div>

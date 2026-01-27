@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { User, Settings, Globe, Image as ImageIcon } from 'lucide-react';
 import { Input } from './ui/input';
@@ -231,6 +232,28 @@ export function SystemSettingsModal({
   onClose,
 }: SystemSettingsModalProps) {
   const { t, language, setSystemLanguage } = useTranslation();
+  const [localLanguage, setLocalLanguage] = useState(language);
+
+  // Sync local state with global state when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setLocalLanguage(language);
+    }
+  }, [isOpen, language]);
+
+  const handleSave = () => {
+    setSystemLanguage(localLanguage);
+
+    // Show toast in the NEW language
+    const messages = {
+      ja: '言語を変更しました',
+      ko: '언어가 변경되었습니다',
+      en: 'Language changed successfully'
+    };
+
+    toast.success(messages[localLanguage]);
+    onClose();
+  };
 
   if (!isOpen) return null;
 
@@ -277,18 +300,15 @@ export function SystemSettingsModal({
               ].map((lang) => (
                 <button
                   key={lang.value}
-                  onClick={() => {
-                    setSystemLanguage(lang.value as 'ja' | 'ko' | 'en');
-                    toast.success(t('languageChanged'));
-                  }}
-                  className={`w-full p-4 rounded-lg border-2 transition-all flex items-center gap-3 ${language === lang.value
+                  onClick={() => setLocalLanguage(lang.value as 'ja' | 'ko' | 'en')}
+                  className={`w-full p-4 rounded-lg border-2 transition-all flex items-center gap-3 ${localLanguage === lang.value
                     ? 'border-yellow-400 bg-yellow-50'
                     : 'border-gray-200 hover:border-gray-300'
                     }`}
                 >
                   <span className="text-2xl">{lang.flag}</span>
                   <span className="font-semibold text-gray-900">{lang.label}</span>
-                  {language === lang.value && (
+                  {localLanguage === lang.value && (
                     <span className="ml-auto text-yellow-600 font-bold">✓</span>
                   )}
                 </button>
@@ -307,7 +327,7 @@ export function SystemSettingsModal({
             {t('cancel')}
           </Button>
           <Button
-            onClick={onClose}
+            onClick={handleSave}
             className="px-6 py-2 bg-yellow-400 hover:bg-yellow-500 text-gray-900 rounded-lg font-semibold"
           >
             {t('save')}

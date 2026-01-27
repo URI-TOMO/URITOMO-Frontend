@@ -162,7 +162,6 @@ const translations: Record<string, Record<Language, string>> = {
     createAccount: { ja: 'アカウント作成', ko: '계정 만들기', en: 'Create account' },
     findAccount: { ja: 'アカウントを探す', ko: '계정 찾기', en: 'Find account' },
     or: { ja: 'または', ko: '또는', en: 'or' },
-    socialLogin: { ja: 'Lineボタンでゲストログイン可能', ko: 'Line 버튼으로 게스트 로그인 가능', en: 'Click Line button for Guest Login' },
     loginDescription: { ja: '日韓バイリンガルミーティングのための', ko: '한일 바이링구얼 미팅을 위한', en: 'Real-time Translation AI Tool' },
     loginDescription2: { ja: 'リアルタイム翻訳AIツール', ko: '실시간 번역 AI 도구', en: 'for Japanese-Korean Bilingual Meetings' },
     confirmPassword: { ja: 'パスワード確認', ko: '비밀번호 확인', en: 'Confirm Password' },

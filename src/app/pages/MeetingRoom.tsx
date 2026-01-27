@@ -420,6 +420,13 @@ export function MeetingRoom() {
 
             <div className="flex items-center gap-3">
               <button
+                onClick={() => setShowRoomSettings(true)}
+                className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-all"
+                title={t('roomSettings') || 'ルーム設定'}
+              >
+                <Settings className="h-5 w-5" />
+              </button>
+              <button
                 onClick={() => setShowMembersPanel(!showMembersPanel)}
                 className="px-4 py-2 bg-yellow-100 rounded-full hover:bg-yellow-200 transition-colors cursor-pointer"
                 title="メンバー一覧を表示"
@@ -882,6 +889,83 @@ export function MeetingRoom() {
             </p>
           </div>
         </motion.div>
+      )}
+
+      {/* Room Settings Modal */}
+      {showRoomSettings && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+          >
+            <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-yellow-400 to-amber-400">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <Settings className="h-6 w-6" />
+                  {t('roomSettings') || 'ルーム設定'}
+                </h2>
+                <button
+                  onClick={() => setShowRoomSettings(false)}
+                  className="text-white/80 hover:text-white transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Room Name Change */}
+              <div className="space-y-3">
+                <label className="text-sm font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+                  <Edit3 className="h-4 w-4" />
+                  {t('changeRoomName') || 'ルーム名の 변경'}
+                </label>
+                <div className="flex gap-2">
+                  <Input
+                    value={roomName}
+                    onChange={(e) => setRoomName(e.target.value)}
+                    placeholder={t('enterRoomName') || 'ルーム名を入力'}
+                    className="flex-1"
+                  />
+                  <Button
+                    onClick={() => {
+                      toast.info(t('featureUnderDevelopment') || '開発中の機能です');
+                    }}
+                    className="bg-gray-900 hover:bg-black text-white px-4"
+                  >
+                    {t('save') || '保存'}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="border-t border-gray-100 pt-6">
+                <button
+                  onClick={() => {
+                    toast.info(t('featureUnderDevelopment') || '開発中の機能입니다');
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 font-bold transition-all"
+                >
+                  <LogOut className="h-5 w-5" />
+                  {t('leaveRoom') || 'ルームから退出'}
+                </button>
+                <p className="text-xs text-gray-400 mt-2 text-center">
+                  {t('leaveRoomDisclaimer') || '退出するとこのルームの履歴にアクセスできなくなります'}
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 px-6 py-4 flex justify-end">
+              <Button
+                onClick={() => setShowRoomSettings(false)}
+                variant="outline"
+                className="font-semibold"
+              >
+                {t('close') || '閉じる'}
+              </Button>
+            </div>
+          </motion.div>
+        </div>
       )}
 
       {/* Add Member Modal */}
