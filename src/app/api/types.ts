@@ -5,6 +5,8 @@ export interface UserProfile {
   display_name: string; // Python: name -> JSON: display_name (확인 필요, 보통 name 그대로 옴)
   picture?: string;
   locale?: string;
+  lang?: string;
+  country?: string;
 }
 
 // 로그인 성공 시 받는 응답 (backend TokenResponse 참고)

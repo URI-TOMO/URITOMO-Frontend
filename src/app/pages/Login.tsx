@@ -56,13 +56,32 @@ export function Login({ onLogin }: LoginProps) {
         avatar: profile.picture
       }));
 
+      // [국적/언어 설정 반영]
+      let currentLang = language;
+      // Check for various possible property names from backend
+      const userLang = profile.lang || profile.language || profile.country || profile.locale;
+
+      if (userLang) {
+        const normalizedLang = String(userLang).toLowerCase();
+        if (['jp', 'ja', 'japan'].includes(normalizedLang)) {
+          setSystemLanguage('ja');
+          currentLang = 'ja';
+        } else if (['kr', 'ko', 'korea'].includes(normalizedLang)) {
+          setSystemLanguage('ko');
+          currentLang = 'ko';
+        } else if (['en', 'us', 'usa'].includes(normalizedLang)) {
+          setSystemLanguage('en');
+          currentLang = 'en';
+        }
+      }
+
       // 2. 환영 메시지 (다국어 처리)
       // Logic adjusted to use translation keys roughly
       let welcomePrefix = '';
       let welcomeSuffix = '';
-      if (language === 'ja') {
+      if (currentLang === 'ja') {
         welcomeSuffix = 'さん、ようこそ！';
-      } else if (language === 'ko') {
+      } else if (currentLang === 'ko') {
         welcomeSuffix = '님 환영합니다!';
       } else {
         welcomePrefix = 'Welcome, ';
@@ -368,20 +387,20 @@ export function Login({ onLogin }: LoginProps) {
               <div className="mt-4 flex justify-center">
                 <button
                   onClick={async () => {
-                    const devProfile = {
-                      id: 'dev-user-id',
-                      name: 'Developer',
-                      email: 'dev@local',
-                      display_name: 'Dev User',
-                      picture: ''
+                    const devResponse = {
+                      access_token: 'dev-bypass-token',
+                      user: {
+                        id: 'dev-user-id',
+                        name: 'Developer',
+                        email: 'dev@local',
+                        display_name: 'Dev User',
+                        picture: '',
+                        lang: 'en'
+                      }
                     };
 
-                    localStorage.setItem('uri-tomo-token', 'dev-bypass-token');
-                    localStorage.setItem('uri-tomo-user-profile', JSON.stringify(devProfile));
-                    setSystemLanguage('ja'); // Dev default
-
-                    toast.success('Developer Mode Login');
-                    onLogin(devProfile.email);
+                    await handleAuthSuccess(devResponse);
+                    toast.success('Developer Mode Login (English Test)');
                   }}
                   className="text-[10px] text-gray-300 hover:text-gray-400 transition-colors cursor-pointer"
                   title="Dev Bypass"
