@@ -39,6 +39,3 @@ dist-builder/
 # Generated config files (TS -> JS)
 vite.config.js
 vite.config.d.ts
-
-# Temporary files
-git.txt
