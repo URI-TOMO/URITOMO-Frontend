@@ -70,6 +70,10 @@ export default defineConfig(({ command, mode }) => {
           target: target,
           changeOrigin: true,
         },
+        '/room': {
+          target: target,
+          changeOrigin: true,
+        },
       }
     },
   }

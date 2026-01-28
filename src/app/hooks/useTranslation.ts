@@ -11,6 +11,7 @@ const translations: Record<string, Record<Language, string>> = {
     roomName: { ja: 'ルーム名', ko: '룸 이름', en: 'Room Name' },
     enterRoomName: { ja: 'ルーム名を入力', ko: '룸 이름을 입력하세요', en: 'Enter room name' },
     create: { ja: '作成', ko: '만들기', en: 'Create' },
+    creating: { ja: '作成中...', ko: '만드는 중...', en: 'Creating...' },
     logout: { ja: 'ログアウト', ko: '로그아웃', en: 'Logout' },
 
     // SettingsModal
