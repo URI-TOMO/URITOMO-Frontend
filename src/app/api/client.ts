@@ -1,9 +1,10 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { toast } from 'sonner';
 
-const baseURL = import.meta.env.DEV
-  ? ''
-  : (import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || '');
+const baseURL = 'http://10.0.255.80:8000';
+// const baseURL = import.meta.env.DEV
+//   ? ''
+//   : (import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || '');
 
 // 1. Axios 인스턴스 생성
 const apiClient: AxiosInstance = axios.create({
