@@ -230,6 +230,8 @@ export const translations: Record<string, Record<Language, string>> = {
     friendAdded: { ja: '友達が追加されました', ko: '친구가 추가되었습니다', en: 'Friend added' },
     friendAddFailed: { ja: '友達の追加に失敗しました', ko: '친구 추가에 실패했습니다', en: 'Failed to add friend' },
     updateProfileFailed: { ja: 'プロフィールの更新に失敗しました', ko: '프로필 업데이트에 실패했습니다', en: 'Failed to update profile' },
+    updateNicknameFailed: { ja: 'ニックネームの更新に失敗しました', ko: '닉네임 업데이트에 실패했습니다', en: 'Failed to update nickname' },
+    deleteContactFailed: { ja: '連絡先の削除に失敗しました', ko: '연락처 삭제에 실패했습니다', en: 'Failed to delete contact' },
 
     // API Errors
     sessionExpired: { ja: 'セッションが期限切れです。再度ログインしてください。', ko: '세션이 만료되었습니다. 다시 로그인해주세요.', en: 'Session expired. Please login again.' },

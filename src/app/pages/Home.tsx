@@ -291,29 +291,54 @@ export function Home() {
     setShowNicknameDialog(true);
   };
 
-  const handleSaveNickname = () => {
+  const handleSaveNickname = async () => {
     if (selectedContact) {
-      const updatedContacts = contacts.map(contact =>
-        contact.id === selectedContact.id ? { ...contact, nickname: editedNickname } : contact
-      );
-      setContacts(updatedContacts);
-      localStorage.setItem('uri-tomo-contacts', JSON.stringify(updatedContacts));
-      setShowNicknameDialog(false);
-      toast.success(t('nicknameSet'), {
-        description: `${selectedContact.name} ${t('nicknameSet')}.`,
-        duration: 3000,
-      });
+      if (!editedNickname.trim()) {
+        toast.error(t('enterNickname') || 'Nickname cannot be empty');
+        return;
+      }
+
+      try {
+        // Call API
+        const response = await userApi.updateFriendNickname(selectedContact.id, editedNickname);
+
+        // Update local state
+        const updatedContacts = contacts.map(contact =>
+          contact.id === selectedContact.id ? { ...contact, nickname: response.nickname } : contact
+        );
+        setContacts(updatedContacts);
+        localStorage.setItem('uri-tomo-contacts', JSON.stringify(updatedContacts));
+
+        setShowNicknameDialog(false);
+        toast.success(t('nicknameSet'), {
+          description: `${selectedContact.name} -> ${response.nickname}`,
+          duration: 3000,
+        });
+      } catch (error) {
+        console.error('Failed to update nickname:', error);
+        toast.error(t('updateNicknameFailed') || 'Failed to update nickname');
+      }
     }
   };
 
-  const handleDeleteContact = (contact: Contact) => {
-    const updatedContacts = contacts.filter(c => c.id !== contact.id);
-    setContacts(updatedContacts);
-    localStorage.setItem('uri-tomo-contacts', JSON.stringify(updatedContacts));
-    toast.success(t('contactDeleted'), {
-      description: `${contact.name} ${t('deleteContactDesc')}`,
-      duration: 3000,
-    });
+  const handleDeleteContact = async (contact: Contact) => {
+    try {
+      // Call API
+      await userApi.deleteFriend(contact.id);
+
+      // Update local state
+      const updatedContacts = contacts.filter(c => c.id !== contact.id);
+      setContacts(updatedContacts);
+      localStorage.setItem('uri-tomo-contacts', JSON.stringify(updatedContacts));
+
+      toast.success(t('contactDeleted'), {
+        description: `${contact.name} ${t('deleteContactDesc')}`,
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error('Failed to delete contact:', error);
+      toast.error(t('deleteContactFailed') || 'Failed to delete contact');
+    }
   };
 
   if (isLoading) {

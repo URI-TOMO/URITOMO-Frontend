@@ -1,5 +1,5 @@
 import apiClient from './client';
-import { MainDataResponse, AddFriendRequest, AddFriendResponse, UserProfile } from './types';
+import { MainDataResponse, AddFriendRequest, AddFriendResponse, UserProfile, UpdateNicknameResponse } from './types';
 
 export const userApi = {
     /**
@@ -35,5 +35,29 @@ export const userApi = {
         return apiClient.patch('/user/profile', data);
     },
 
+    /**
+     * 친구 닉네임 변경 API 호출
+     * @param friendId - 친구의 ID
+     * @param newNickname - 변경할 새 닉네임
+     */
+    updateFriendNickname: async (friendId: string, newNickname: string): Promise<UpdateNicknameResponse> => {
+        // Note: The structure of response depends on apiClient implementation.
+        // Assuming apiClient.patch returns the data directly or we need to extract it.
+        // Based on other calls: return apiClient.get(...) -> returns Promise<MainDataResponse>
+        // Use generic if possible: apiClient.patch<T>(...)
+        return apiClient.patch<UpdateNicknameResponse>(
+            `/user/friend/${friendId}/nickname`,
+            { nickname: newNickname }
+        ) as unknown as Promise<UpdateNicknameResponse>;
+    },
 
+    /**
+     * 친구 삭제 API 호출
+     * @param friendId - 삭제할 친구의 ID
+     */
+    deleteFriend: async (friendId: string): Promise<void> => {
+        await apiClient.delete(
+            `/user/friend/${friendId}`
+        );
+    },
 };
