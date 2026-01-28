@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Users, Plus, Settings, LogOut } from 'lucide-react';
 import { CreateRoomModal } from './CreateRoomModal';
 import { useTranslation } from '../hooks/useTranslation';
+import apiClient from '../api/client';
 
 interface Room {
   id: string;
@@ -47,17 +48,25 @@ export function Sidebar({ onLogout, userName, userEmail, userAvatar, avatarType,
     };
   }, []);
 
-  const handleCreateRoom = (roomName: string) => {
-    const newRoom: Room = {
-      id: Date.now().toString(),
-      name: roomName,
-    };
+  const handleCreateRoom = async (roomName: string) => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await apiClient.post('/room/create', { room_name: roomName }) as any;
 
-    const updatedRooms = [...rooms, newRoom];
-    setRooms(updatedRooms);
-    localStorage.setItem('uri-tomo-rooms', JSON.stringify(updatedRooms));
+      const newRoom: Room = {
+        id: response.room_id || response.id,
+        name: response.room_name || response.name || roomName,
+      };
 
-    setIsRoomDialogOpen(false);
+      const updatedRooms = [...rooms, newRoom];
+      setRooms(updatedRooms);
+      localStorage.setItem('uri-tomo-rooms', JSON.stringify(updatedRooms));
+
+      setIsRoomDialogOpen(false);
+    } catch (error) {
+      console.error('Failed to create room:', error);
+      throw error;
+    }
   };
 
   const handleJoinRoom = (roomId: string) => {
