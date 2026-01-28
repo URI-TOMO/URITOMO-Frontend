@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Users, Plus, Settings, LogOut } from 'lucide-react';
-import { Button } from './ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
+import { CreateRoomModal } from './CreateRoomModal';
+import { useTranslation } from '../hooks/useTranslation';
+import apiClient from '../api/client';
 
 interface Room {
   id: string;
@@ -27,41 +26,47 @@ export function Sidebar({ onLogout, userName, userEmail, userAvatar, avatarType,
   const location = useLocation();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [isRoomDialogOpen, setIsRoomDialogOpen] = useState(false);
-  const [newRoomName, setNewRoomName] = useState('');
 
-  useEffect(() => {
+  const { t } = useTranslation();
+
+  const loadRooms = () => {
     // Load rooms from localStorage
     const savedRooms = JSON.parse(localStorage.getItem('uri-tomo-rooms') || '[]');
-    if (savedRooms.length === 0) {
-      // Initialize with default rooms
-      const defaultRooms: Room[] = [
-        { id: '1', name: 'あ' },
-        { id: '2', name: 'か' },
-        { id: '3', name: 'さ' },
-        { id: '4', name: 'た' },
-        { id: '5', name: 'な' },
-      ];
-      setRooms(defaultRooms);
-      localStorage.setItem('uri-tomo-rooms', JSON.stringify(defaultRooms));
-    } else {
-      setRooms(savedRooms);
-    }
-  }, []);
+    setRooms(savedRooms);
+  };
 
-  const handleCreateRoom = () => {
-    if (!newRoomName.trim()) return;
+  useEffect(() => {
+    loadRooms();
 
-    const newRoom: Room = {
-      id: Date.now().toString(),
-      name: newRoomName,
+    const handleRoomsUpdated = () => {
+      loadRooms();
     };
 
-    const updatedRooms = [...rooms, newRoom];
-    setRooms(updatedRooms);
-    localStorage.setItem('uri-tomo-rooms', JSON.stringify(updatedRooms));
-    
-    setIsRoomDialogOpen(false);
-    setNewRoomName('');
+    window.addEventListener('rooms-updated', handleRoomsUpdated);
+    return () => {
+      window.removeEventListener('rooms-updated', handleRoomsUpdated);
+    };
+  }, []);
+
+  const handleCreateRoom = async (roomName: string) => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await apiClient.post('/room/create', { room_name: roomName }) as any;
+
+      const newRoom: Room = {
+        id: response.room_id || response.id,
+        name: response.room_name || response.name || roomName,
+      };
+
+      const updatedRooms = [...rooms, newRoom];
+      setRooms(updatedRooms);
+      localStorage.setItem('uri-tomo-rooms', JSON.stringify(updatedRooms));
+
+      setIsRoomDialogOpen(false);
+    } catch (error) {
+      console.error('Failed to create room:', error);
+      throw error;
+    }
   };
 
   const handleJoinRoom = (roomId: string) => {
@@ -99,7 +104,7 @@ export function Sidebar({ onLogout, userName, userEmail, userAvatar, avatarType,
           onClick={() => navigate('/home')}
         >
           <Users className="h-5 w-5 text-yellow-600" />
-          <span className="font-medium">Contact</span>
+          <span className="font-medium">{t('contact')}</span>
         </button>
       </div>
 
@@ -109,7 +114,7 @@ export function Sidebar({ onLogout, userName, userEmail, userAvatar, avatarType,
           {rooms.map((room, index) => {
             // Extract first character properly (handles emojis and special characters)
             const firstChar = Array.from(room.name)[0] || room.name.charAt(0);
-            
+
             return (
               <button
                 key={room.id}
@@ -133,48 +138,29 @@ export function Sidebar({ onLogout, userName, userEmail, userAvatar, avatarType,
           onClick={onSettingsClick}
         >
           <Settings className="h-5 w-5" />
-          <span className="font-medium">設定</span>
+          <span className="font-medium">{t('settings')}</span>
         </button>
-        
-        <Dialog open={isRoomDialogOpen} onOpenChange={setIsRoomDialogOpen}>
-          <DialogTrigger asChild>
-            <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-yellow-100 text-yellow-700 transition-colors">
-              <Plus className="h-5 w-5" />
-              <span className="font-medium">ルーム追加</span>
-            </button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>新しいルームを作成</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 mt-4">
-              <div>
-                <Label htmlFor="roomName">ルーム名</Label>
-                <Input
-                  id="roomName"
-                  value={newRoomName}
-                  onChange={(e) => setNewRoomName(e.target.value)}
-                  placeholder="ルーム名を入力"
-                  className="mt-2"
-                />
-              </div>
-              <Button
-                onClick={handleCreateRoom}
-                className="w-full bg-gradient-to-r from-yellow-400 to-amber-400 hover:from-yellow-500 hover:to-amber-500 text-white"
-              >
-                <Plus className="h-5 w-5 mr-2" />
-                作成
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+
+        <button
+          onClick={() => setIsRoomDialogOpen(true)}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-yellow-100 text-yellow-700 transition-colors"
+        >
+          <Plus className="h-5 w-5" />
+          <span className="font-medium">{t('addRoom')}</span>
+        </button>
+
+        <CreateRoomModal
+          isOpen={isRoomDialogOpen}
+          onClose={() => setIsRoomDialogOpen(false)}
+          onCreate={handleCreateRoom}
+        />
 
         <button
           onClick={onLogout}
           className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
         >
           <LogOut className="h-5 w-5" />
-          <span className="font-medium">ログアウト</span>
+          <span className="font-medium">{t('logout')}</span>
         </button>
       </div>
     </aside>

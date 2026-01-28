@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'motion/react';
-import { 
-  Home, 
-  Users, 
-  Send, 
+import { motion } from 'framer-motion';
+import {
+  Home,
+  Users,
+  Send,
   ArrowLeft,
   Bot,
   MessageCircle,
@@ -19,6 +19,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { ProfileSettingsModal, SystemSettingsModal } from '../components/SettingsModals';
 import { toast } from 'sonner';
+import { useTranslation } from '../hooks/useTranslation';
 
 interface ChatMessage {
   id: string;
@@ -45,7 +46,7 @@ export function DirectChat() {
   const { contactId } = useParams();
   const navigate = useNavigate();
   const chatEndRef = useRef<HTMLDivElement>(null);
-  
+
   const [contact, setContact] = useState<Contact | null>(null);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -62,7 +63,7 @@ export function DirectChat() {
   const [editedUserName, setEditedUserName] = useState('');
   const [editedUserAvatar, setEditedUserAvatar] = useState('');
   const [editedAvatarType, setEditedAvatarType] = useState<'emoji' | 'image' | 'none'>('none');
-  const [systemLanguage, setSystemLanguage] = useState<'ja' | 'ko' | 'en'>('ja');
+  const { t, language: systemLanguage, setSystemLanguage } = useTranslation();
 
   // Listen for sidebar button clicks
   useEffect(() => {
@@ -140,35 +141,20 @@ export function DirectChat() {
     }
 
     if (savedLanguage) {
-      setSystemLanguage(savedLanguage as 'ja' | 'ko' | 'en');
+      // setSystemLanguage(savedLanguage as 'ja' | 'ko' | 'en'); // Handled by useTranslation
     }
 
     // Load chat messages for this contact
     const savedMessages = JSON.parse(
       localStorage.getItem(`uri-tomo-direct-chat-${contactId}`) || '[]'
     );
-    
-    // Initialize with default messages if empty
-    if (savedMessages.length === 0) {
-      const defaultMessages: ChatMessage[] = [
-        {
-          id: '1',
-          sender: 'Uri-Tomo',
-          message: `${foundContact?.name || 'Friend'}とのダイレクトチャットが開始されました。AI翻訳機能が有効です。`,
-          timestamp: new Date(),
-          isMe: false,
-          isAI: true,
-        },
-      ];
-      setMessages(defaultMessages);
-    } else {
-      setMessages(
-        savedMessages.map((m: any) => ({
-          ...m,
-          timestamp: new Date(m.timestamp),
-        }))
-      );
-    }
+
+    setMessages(
+      savedMessages.map((m: any) => ({
+        ...m,
+        timestamp: new Date(m.timestamp),
+      }))
+    );
   }, [contactId]);
 
   useEffect(() => {
@@ -189,7 +175,7 @@ export function DirectChat() {
 
     const updatedMessages = [...messages, newMessage];
     setMessages(updatedMessages);
-    
+
     // Save to localStorage
     localStorage.setItem(
       `uri-tomo-direct-chat-${contactId}`,
@@ -197,25 +183,6 @@ export function DirectChat() {
     );
 
     setInputMessage('');
-
-    // Simulate response from contact after 1.5 seconds
-    setTimeout(() => {
-      const responseMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        sender: contact?.name || 'Friend',
-        message: 'メッセージを受け取りました！',
-        timestamp: new Date(),
-        isMe: false,
-      };
-
-      const messagesWithResponse = [...updatedMessages, responseMessage];
-      setMessages(messagesWithResponse);
-      
-      localStorage.setItem(
-        `uri-tomo-direct-chat-${contactId}`,
-        JSON.stringify(messagesWithResponse)
-      );
-    }, 1500);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -276,7 +243,7 @@ export function DirectChat() {
       <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-amber-50 to-orange-50 flex items-center justify-center">
         <div className="text-center">
           <Bot className="h-16 w-16 text-yellow-500 mx-auto mb-4 animate-pulse" />
-          <p className="text-gray-600">コンタクトを読み込んでいます...</p>
+          <p className="text-gray-600">{t('loadingContacts')}</p>
         </div>
       </div>
     );
@@ -299,9 +266,8 @@ export function DirectChat() {
                 {contact.name.charAt(0)}
               </div>
               <div
-                className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
-                  contact.status === 'online' ? 'bg-green-500' : 'bg-gray-400'
-                }`}
+                className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${contact.status === 'online' ? 'bg-green-500' : 'bg-gray-400'
+                  }`}
               />
             </div>
             <div>
@@ -348,9 +314,8 @@ export function DirectChat() {
                     <Bot className="h-3 w-3 text-yellow-600" />
                   </div>
                 )}
-                <span className={`text-sm font-semibold ${
-                  message.isAI ? 'text-yellow-700' : 'text-gray-700'
-                }`}>
+                <span className={`text-sm font-semibold ${message.isAI ? 'text-yellow-700' : 'text-gray-700'
+                  }`}>
                   {message.sender}
                 </span>
                 <span className="text-xs text-gray-400">
@@ -361,13 +326,12 @@ export function DirectChat() {
                 </span>
               </div>
               <div
-                className={`inline-block px-4 py-2 rounded-2xl ${
-                  message.isAI
-                    ? 'bg-gradient-to-r from-yellow-100 to-amber-100 border-2 border-yellow-300 text-gray-900'
-                    : message.isMe
+                className={`inline-block px-4 py-2 rounded-2xl ${message.isAI
+                  ? 'bg-gradient-to-r from-yellow-100 to-amber-100 border-2 border-yellow-300 text-gray-900'
+                  : message.isMe
                     ? 'bg-gradient-to-r from-yellow-400 to-amber-400 text-white'
                     : 'bg-white border border-gray-200 text-gray-900'
-                }`}
+                  }`}
               >
                 <p className="text-sm whitespace-pre-wrap">{message.message}</p>
               </div>
@@ -389,7 +353,7 @@ export function DirectChat() {
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-sm font-bold text-gray-900 flex items-center gap-2">
                 <Smile className="h-4 w-4 text-yellow-600" />
-                スタンプを選択
+                {t('selectSticker')}
               </h4>
               <button
                 onClick={() => setShowStickerPicker(false)}
@@ -404,7 +368,7 @@ export function DirectChat() {
                   key={sticker}
                   onClick={() => handleStickerSelect(sticker)}
                   className="text-3xl p-3 rounded-lg hover:bg-yellow-200 transition-all transform hover:scale-110 active:scale-95"
-                  title="スタンプを送信"
+                  title={t('sendSticker')}
                 >
                   {sticker}
                 </button>
@@ -420,7 +384,7 @@ export function DirectChat() {
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder={`${contact.name}にメッセージを送信...`}
+                placeholder={`${t('sendMessageTo')}${contact.name}`}
                 className="w-full pr-12 py-6 text-base border-2 border-gray-200 focus:border-yellow-400 focus:ring-yellow-400 rounded-xl"
               />
               <button
@@ -436,19 +400,18 @@ export function DirectChat() {
               variant="outline"
               className="border-2 border-yellow-300 hover:bg-yellow-50"
               onClick={handleFileAttach}
-              title="ファイルを添付"
+              title={t('attachFile')}
             >
               <Paperclip className="h-5 w-5" />
             </Button>
             <Button
               variant="outline"
-              className={`border-2 transition-colors ${
-                showStickerPicker
-                  ? 'bg-yellow-200 border-yellow-400'
-                  : 'border-yellow-300 hover:bg-yellow-50'
-              }`}
+              className={`border-2 transition-colors ${showStickerPicker
+                ? 'bg-yellow-200 border-yellow-400'
+                : 'border-yellow-300 hover:bg-yellow-50'
+                }`}
               onClick={() => setShowStickerPicker(!showStickerPicker)}
-              title="スタンプを選択"
+              title={t('selectSticker')}
             >
               <Smile className="h-5 w-5" />
             </Button>
@@ -459,7 +422,7 @@ export function DirectChat() {
         <div className="mt-3 px-2">
           <p className="text-xs text-gray-500 flex items-center gap-1">
             <Bot className="h-3 w-3 text-yellow-600" />
-            Uri-TomoのAI翻訳機能がメッセージを自動翻訳します
+            {t('aiTranslateFeature')}
           </p>
         </div>
       </div>
@@ -475,7 +438,6 @@ export function DirectChat() {
         editedUserName={editedUserName}
         editedUserAvatar={editedUserAvatar}
         editedAvatarType={editedAvatarType}
-        systemLanguage={systemLanguage}
         onNameChange={setEditedUserName}
         onAvatarChange={setEditedUserAvatar}
         onAvatarTypeChange={setEditedAvatarType}
@@ -502,7 +464,7 @@ export function DirectChat() {
           };
           localStorage.setItem('uri-tomo-user-profile', JSON.stringify(profile));
           window.dispatchEvent(new Event('profile-updated'));
-          toast.success('プロフィールが更新されました');
+          toast.success(t('profileUpdated'));
           setShowProfileSettings(false);
         }}
       />
@@ -511,8 +473,6 @@ export function DirectChat() {
       <SystemSettingsModal
         isOpen={showSystemSettings}
         onClose={() => setShowSystemSettings(false)}
-        systemLanguage={systemLanguage}
-        onLanguageChange={setSystemLanguage}
       />
     </div>
   );

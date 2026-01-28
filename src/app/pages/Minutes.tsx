@@ -2,11 +2,15 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { ArrowLeft, Download, Users, Clock, Calendar, Languages, Bot, FileText, Sparkles, RefreshCw } from 'lucide-react';
+
+import { motion } from 'framer-motion';
+
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { ProfileSettingsModal, SystemSettingsModal } from '../components/SettingsModals';
 import { toast } from 'sonner';
+import { useTranslation } from '../hooks/useTranslation';
 
 interface MeetingMinutes {
   id: string;
@@ -58,7 +62,7 @@ export function Minutes() {
   const [editedUserName, setEditedUserName] = useState('');
   const [editedUserAvatar, setEditedUserAvatar] = useState('');
   const [editedAvatarType, setEditedAvatarType] = useState<'emoji' | 'image' | 'none'>('none');
-  const [systemLanguage, setSystemLanguage] = useState<'ja' | 'ko' | 'en'>('ja');
+  const { t, language: systemLanguage, setSystemLanguage } = useTranslation();
 
   // Listen for sidebar button clicks
   useEffect(() => {
@@ -125,7 +129,7 @@ export function Minutes() {
     }
 
     if (savedLanguage) {
-      setSystemLanguage(savedLanguage as 'ja' | 'ko' | 'en');
+      // setSystemLanguage(savedLanguage as 'ja' | 'ko' | 'en'); // Handled by useTranslation
     }
   }, []);
 
@@ -246,27 +250,27 @@ export function Minutes() {
     if (!minutes) return;
 
     const content = `
-会議議事録
+${t('meetingMinutes')}
 ================
 
-会議名: ${minutes.title}
-開始時刻: ${minutes.startTime.toLocaleString('ja-JP')}
-終了時刻: ${minutes.endTime.toLocaleString('ja-JP')}
-所要時間: ${Math.floor((minutes.endTime.getTime() - minutes.startTime.getTime()) / 60000)} 分
+${t('meetingName')}: ${minutes.title}
+${t('startTime')}: ${minutes.startTime.toLocaleString('ja-JP')}
+${t('endTime')}: ${minutes.endTime.toLocaleString('ja-JP')}
+${t('duration')}: ${Math.floor((minutes.endTime.getTime() - minutes.startTime.getTime()) / 60000)} ${t('minute')}
 
-参加者:
+${t('participants')}:
 ${minutes.participants.map(p => `- ${p.name} ${p.language ? `(${p.language})` : ''}`).join('\n')}
 
-主要ポイント:
+${t('keyPoints')}:
 ${minutes.summary?.keyPoints.map((p, i) => `${i + 1}. ${p}`).join('\n')}
 
-アクションアイテム:
+${t('actionItems')}:
 ${minutes.summary?.actionItems.map((a, i) => `${i + 1}. ${a}`).join('\n')}
 
-決定事項:
+${t('decisions')}:
 ${minutes.summary?.decisions.map((d, i) => `${i + 1}. ${d}`).join('\n')}
 
-翻訳ログ:
+${t('translationLog')}:
 ${minutes.translationLog.map(t => `
 [${t.timestamp.toLocaleTimeString('ja-JP')}] ${t.speaker}
 ${t.originalLang}: ${t.originalText}
@@ -288,7 +292,7 @@ ${t.translatedLang}: ${t.translatedText}
       <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-amber-50 to-orange-50 flex items-center justify-center">
         <div className="text-center">
           <Bot className="h-16 w-16 text-yellow-500 mx-auto mb-4 animate-pulse" />
-          <p className="text-gray-600">議事録を読み込んでいます...</p>
+          <p className="text-gray-600">{t('loadingMinutes')}</p>
         </div>
       </div>
     );
@@ -334,7 +338,7 @@ ${t.translatedLang}: ${t.translatedText}
             <div className="flex items-start gap-3">
               <Calendar className="h-5 w-5 text-yellow-600 mt-0.5" />
               <div>
-                <p className="text-sm text-gray-600">開催日</p>
+                <p className="text-sm text-gray-600">{t('date')}</p>
                 <p className="font-semibold text-gray-900">
                   {minutes.startTime.toLocaleDateString('ja-JP')}
                 </p>
@@ -343,7 +347,7 @@ ${t.translatedLang}: ${t.translatedText}
             <div className="flex items-start gap-3">
               <Clock className="h-5 w-5 text-yellow-600 mt-0.5" />
               <div>
-                <p className="text-sm text-gray-600">時間</p>
+                <p className="text-sm text-gray-600">{t('time')}</p>
                 <p className="font-semibold text-gray-900">
                   {minutes.startTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
                   {' - '}
@@ -354,15 +358,15 @@ ${t.translatedLang}: ${t.translatedText}
             <div className="flex items-start gap-3">
               <Clock className="h-5 w-5 text-yellow-600 mt-0.5" />
               <div>
-                <p className="text-sm text-gray-600">所要時間</p>
-                <p className="font-semibold text-gray-900">{duration} 分</p>
+                <p className="text-sm text-gray-600">{t('duration')}</p>
+                <p className="font-semibold text-gray-900">{duration} {t('minute')}</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
               <Users className="h-5 w-5 text-yellow-600 mt-0.5" />
               <div>
-                <p className="text-sm text-gray-600">参加者</p>
-                <p className="font-semibold text-gray-900">{minutes.participants.length} 人</p>
+                <p className="text-sm text-gray-600">{t('participants')}</p>
+                <p className="font-semibold text-gray-900">{minutes.participants.length} {t('people')}</p>
               </div>
             </div>
           </div>
@@ -376,7 +380,7 @@ ${t.translatedLang}: ${t.translatedText}
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                Uri-TomoのAIサマリー
+                {t('aiSummary')}
                 <Sparkles className="h-5 w-5 text-yellow-500 animate-pulse" />
               </h2>
               <div className="flex items-center gap-2">
@@ -399,7 +403,7 @@ ${t.translatedLang}: ${t.translatedText}
             <div>
               <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                 <FileText className="h-5 w-5 text-yellow-600" />
-                主要ポイント
+                {t('keyPoints')}
               </h3>
               <ul className="space-y-2">
                 {minutes.summary?.keyPoints.map((point, index) => (
@@ -415,7 +419,7 @@ ${t.translatedLang}: ${t.translatedText}
             <div>
               <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                 <FileText className="h-5 w-5 text-yellow-600" />
-                アクションアイテム
+                {t('actionItems')}
               </h3>
               <ul className="space-y-2">
                 {minutes.summary?.actionItems.map((item, index) => (
@@ -431,7 +435,7 @@ ${t.translatedLang}: ${t.translatedText}
             <div>
               <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                 <FileText className="h-5 w-5 text-yellow-600" />
-                決定事項
+                {t('decisions')}
               </h3>
               <ul className="space-y-2">
                 {minutes.summary?.decisions.map((decision, index) => (
@@ -450,17 +454,17 @@ ${t.translatedLang}: ${t.translatedText}
           <TabsList className="grid w-full grid-cols-2 bg-yellow-100">
             <TabsTrigger value="participants" className="data-[state=active]:bg-white">
               <Users className="h-4 w-4 mr-2" />
-              参加者
+              {t('participants')}
             </TabsTrigger>
             <TabsTrigger value="translation" className="data-[state=active]:bg-white">
               <Languages className="h-4 w-4 mr-2" />
-              翻訳ログ
+              {t('translationLog')}
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="participants">
             <Card className="p-6">
-              <h3 className="font-semibold text-lg text-gray-900 mb-4">参加者一覧</h3>
+              <h3 className="font-semibold text-lg text-gray-900 mb-4">{t('participantsList')}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {minutes.participants.map((participant) => (
                   <div key={participant.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
@@ -471,7 +475,7 @@ ${t.translatedLang}: ${t.translatedText}
                       <p className="font-medium text-gray-900">{participant.name}</p>
                       {participant.language && (
                         <p className="text-sm text-gray-600">
-                          {participant.language === 'ja' ? '🇯🇵 日本語' : '🇰🇷 한국어'}
+                          {participant.language === 'ja' ? `🇯🇵 ${t('japanese')}` : `🇰🇷 ${t('korean')}`}
                         </p>
                       )}
                     </div>
@@ -483,7 +487,7 @@ ${t.translatedLang}: ${t.translatedText}
 
           <TabsContent value="translation">
             <Card className="p-6">
-              <h3 className="font-semibold text-lg text-gray-900 mb-4">リアルタイム翻訳ログ</h3>
+              <h3 className="font-semibold text-lg text-gray-900 mb-4">{t('realtimeTranslationLog')}</h3>
               <div className="space-y-4">
                 {minutes.translationLog.map((entry) => (
                   <div key={entry.id} className="border-l-4 border-yellow-400 pl-4 py-2 bg-gray-50 rounded-r-lg">
@@ -522,7 +526,6 @@ ${t.translatedLang}: ${t.translatedText}
         editedUserName={editedUserName}
         editedUserAvatar={editedUserAvatar}
         editedAvatarType={editedAvatarType}
-        systemLanguage={systemLanguage}
         onNameChange={setEditedUserName}
         onAvatarChange={setEditedUserAvatar}
         onAvatarTypeChange={setEditedAvatarType}
@@ -548,7 +551,7 @@ ${t.translatedLang}: ${t.translatedText}
           };
           localStorage.setItem('uri-tomo-user-profile', JSON.stringify(profile));
           window.dispatchEvent(new Event('profile-updated'));
-          toast.success('プロフィールが更新されました');
+          toast.success(t('profileUpdated'));
           setShowProfileSettings(false);
         }}
       />
@@ -557,8 +560,6 @@ ${t.translatedLang}: ${t.translatedText}
       <SystemSettingsModal
         isOpen={showSystemSettings}
         onClose={() => setShowSystemSettings(false)}
-        systemLanguage={systemLanguage}
-        onLanguageChange={setSystemLanguage}
       />
     </div>
   );

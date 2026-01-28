@@ -4,7 +4,7 @@ const { app, BrowserWindow, ipcMain, desktopCapturer, session } = require('elect
 import type { BrowserWindow as BrowserWindowType } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import { AccessToken } from 'livekit-server-sdk'
+
 import dotenv from 'dotenv'
 
 dotenv.config()
@@ -45,6 +45,7 @@ function createWindow() {
 
     desktopCapturer.getSources({ types: ['screen', 'window'] }).then((sources) => {
       console.log('[Main] Found sources:', sources.length);
+
 
       // ★修正: ここで不要なウィンドウをフィルタリング
       const cleanSources = sources.filter(source =>
@@ -92,20 +93,7 @@ app.on('activate', () => {
 app.whenReady().then(() => {
   createWindow()
 
-  // LiveKitトークン発行
-  ipcMain.handle('get-livekit-token', async (_, { roomName, participantName }) => {
-    try {
-      const apiKey = process.env.LIVEKIT_API_KEY
-      const apiSecret = process.env.LIVEKIT_API_SECRET
-      const wsUrl = process.env.LIVEKIT_URL
-      if (!apiKey || !apiSecret || !wsUrl) throw new Error('LiveKit env missing')
-      const at = new AccessToken(apiKey, apiSecret, { identity: participantName })
-      at.addGrant({ roomJoin: true, room: roomName, canPublish: true, canSubscribe: true })
-      return { token: await at.toJwt(), url: wsUrl }
-    } catch (error) {
-      console.error(error); throw error;
-    }
-  })
+
 
   // ▼▼▼ Reactからの選択結果を受け取る処理 ▼▼▼
   ipcMain.handle('select-screen-source', async (_, sourceId: string | null) => {
@@ -134,5 +122,15 @@ app.whenReady().then(() => {
       screenShareCallback(null as any);
     }
     screenShareCallback = null; // リセット
+  });
+
+  // 📝 프론트엔드 로그를 터미널(메인 프로세스)에 출력하기 위한 리스너
+  ipcMain.on('log', (_, data) => {
+    if (typeof data === 'string') {
+      console.log('\x1b[36m%s\x1b[0m', `[Renderer Log] ${data}`);
+    } else {
+      console.log('\x1b[36m%s\x1b[0m', `[Renderer API Log]`);
+      console.dir(data, { depth: null, colors: true });
+    }
   });
 })

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import {
   Video, VideoOff, Mic, MicOff, PhoneOff, Users, Settings, Bot,
@@ -11,6 +11,7 @@ import {
 import { Button } from '../components/ui/button';
 import { ProfileSettingsModal, SystemSettingsModal } from '../components/SettingsModals';
 import { toast } from 'sonner';
+import { meetingApi } from '../api/meeting';
 // LiveKit imports
 import {
   LiveKitRoom,
@@ -21,8 +22,9 @@ import {
   useRoomContext,
   useLocalParticipant
 } from '@livekit/components-react';
-import { Track } from 'livekit-client';
+import { Track, RoomEvent } from 'livekit-client';
 import '@livekit/components-styles';
+import { useTranslation } from '../hooks/useTranslation';
 
 // --- Utils ---
 const ensureMediaPermission = async () => {
@@ -35,6 +37,8 @@ const ensureMediaPermission = async () => {
 };
 
 // --- Types ---
+
+
 interface TranslationLog {
   id: string;
   speaker: string;
@@ -81,19 +85,27 @@ function ActiveMeetingContent({
   currentUserProp,
   devices: initialDevices,
   initialSettings,
+
   wsSessionId,
   wsToken
+  livekitToken
+
 }: {
   meetingId: string,
   currentUserProp: any,
   devices?: { audioInputId?: string; videoInputId?: string; audioOutputId?: string },
   initialSettings?: { isMicOn: boolean, isVideoOn: boolean },
+
   wsSessionId?: string,  // WebSocket session ID (optional)
   wsToken?: string       // WebSocket auth token (optional)
+
+  livekitToken?: string
+
 }) {
   const navigate = useNavigate();
   const room = useRoomContext();
   const { localParticipant } = useLocalParticipant();
+  const { t, language: systemLanguage, setSystemLanguage } = useTranslation();
 
   // 参加者リスト（リアルタイム更新）
   const participants = useParticipants();
@@ -136,12 +148,15 @@ function ActiveMeetingContent({
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [translationLogs, setTranslationLogs] = useState<TranslationLog[]>([]);
   const [termExplanations, setTermExplanations] = useState<TermExplanation[]>([]);
+  // const [participants, setParticipants] = useState<Participant[]>([]); // Removed in favor of useParticipants
   const [meetingTitle] = useState('日韓プロジェクト会議');
 
+  
   // --- WebSocket Chat State ---
   const ws = useRef<WebSocket | null>(null);
   const [wsConnected, setWsConnected] = useState(false);
   const BACKEND_WS_URL = import.meta.env.VITE_BACKEND_WS_URL || 'ws://localhost:8000';
+
 
   // Profile Settings State
   const [showProfileSettings, setShowProfileSettings] = useState(false);
@@ -153,7 +168,7 @@ function ActiveMeetingContent({
   const [editedUserName, setEditedUserName] = useState('');
   const [editedUserAvatar, setEditedUserAvatar] = useState('');
   const [editedAvatarType, setEditedAvatarType] = useState<'emoji' | 'image' | 'none'>('none');
-  const [systemLanguage, setSystemLanguage] = useState<'ja' | 'ko' | 'en'>('ja');
+
   // 会議開始時間を記録
   const [startTime] = useState(new Date());
 
@@ -451,16 +466,16 @@ function ActiveMeetingContent({
       if (kind === 'audioinput') setSelectedMicId(id);
       if (kind === 'videoinput') setSelectedCameraId(id);
       if (kind === 'audiooutput') setSelectedSpeakerId(id);
-      toast.success('デバイスを変更しました');
+      toast.success(t('deviceChanged'));
     } catch (e) {
       console.error(e);
-      toast.error('切り替えに失敗しました');
+      toast.error(t('changeFailed'));
     }
   };
 
   const toggleScreenShare = async () => {
     if (!localParticipant) {
-      toast.error('ユーザー情報が取得できません');
+      toast.error(t('userFound'));
       return;
     }
     const newState = !isScreenSharing;
@@ -470,9 +485,9 @@ function ActiveMeetingContent({
     } catch (e: any) {
       console.warn('Screen share failed:', e);
       if (e.name === 'NotAllowedError' || e.message?.includes('Permission denied')) {
-        toast.info('キャンセルしました');
+        toast.info(t('cancelled'));
       } else {
-        toast.error('画面共有を開始できませんでした');
+        toast.error(t('screenShareFailed'));
       }
       setIsScreenSharing(false);
     }
@@ -495,10 +510,10 @@ function ActiveMeetingContent({
     try {
       await localParticipant.setMicrophoneEnabled(newState);
       setIsMicOn(newState);
-      toast(newState ? "マイクをオンにしました" : "マイクをミュートしました");
+      toast(newState ? t('micOn') : t('micOff'));
     } catch (e) {
       console.error(e);
-      toast.error("マイクの切り替えに失敗しました");
+      toast.error(t('changeFailed'));
     }
   };
 
@@ -508,10 +523,10 @@ function ActiveMeetingContent({
     try {
       await localParticipant.setCameraEnabled(newState);
       setIsVideoOn(newState);
-      toast(newState ? "カメラをオンにしました" : "カメラをオフにしました");
+      toast(newState ? t('cameraOn') : t('cameraOff'));
     } catch (e) {
       console.error(e);
-      toast.error("カメラの切り替えに失敗しました");
+      toast.error(t('changeFailed'));
     }
   };
 
@@ -561,15 +576,10 @@ function ActiveMeetingContent({
     input.click();
   };
 
-  // ★ここに追加   --- Refs ---
-  const chatInputRef = useRef<HTMLInputElement>(null);
   // 2. メッセージが追加されたらスクロールする処理
-  const chatEndRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
-  // 3.ファイル添付
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleStickerSelect = (sticker: string) => {
     setChatMessages([...chatMessages, { id: Date.now().toString(), sender: currentUser.name, message: sticker, timestamp: new Date() }]);
@@ -578,6 +588,7 @@ function ActiveMeetingContent({
 
   const handleEndMeeting = () => setShowEndMeetingConfirm(true);
 
+  // ★ここに追加: 会議終了確定ハンドラ
   const confirmEndMeeting = () => {
     const endTime = new Date();
 
@@ -669,24 +680,10 @@ function ActiveMeetingContent({
     loadProfile();
 
     setTranslationLogs([
-      { id: '1', speaker: 'User A', originalText: 'プロジェクトの進捗について報告します', translatedText: '프로젝트 진행 상황에 대해 보고합니다', originalLang: 'ja', timestamp: new Date(Date.now() - 5000) },
-      { id: '2', speaker: 'User B', originalText: '감사합니다. 다음 단계에 대해 논의하고 싶습니다', translatedText: 'ありがとうございます。次のステップについて議論したいです', originalLang: 'ko', timestamp: new Date(Date.now() - 3000) },
+      // Mock data replaced - empty initially or fetched
     ]);
     setTermExplanations([
-      {
-        id: '1',
-        term: 'プロジェクトの進捗',
-        explanation: 'プロジェクトがどれだけ進んでいるかを示す指標。タスクの完了状況、スケジュール通りに進んでいるか、問題点などを含みます。',
-        detectedFrom: 'User Aの発言',
-        timestamp: new Date(Date.now() - 4000),
-      },
-      {
-        id: '2',
-        term: '次のステップ',
-        explanation: 'これから行うべき次の行動や段階。プロジェクトの次のフェーズや、議論された内容を実行に移すための具体的なアクションプランを指します。',
-        detectedFrom: 'User Bの発言',
-        timestamp: new Date(Date.now() - 2000),
-      },
+      // Mock data replaced
     ]);
 
     const timer = setInterval(() => setDuration(p => p + 1), 1000);
@@ -712,7 +709,7 @@ function ActiveMeetingContent({
       <div className="flex-1 overflow-hidden relative min-h-0">
         {!isSidebarOpen && (
           <motion.button initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} onClick={() => setIsSidebarOpen(true)} className="absolute top-4 right-4 z-10 bg-yellow-400 hover:bg-yellow-500 text-gray-900 px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 font-semibold transition-all">
-            <Bot className="h-5 w-5" /><span>Uri-Tomoを開く</span><ChevronLeft className="h-5 w-5" />
+            <Bot className="h-5 w-5" /><span>{t('openUriTomo')}</span><ChevronLeft className="h-5 w-5" />
           </motion.button>
         )}
 
@@ -745,7 +742,7 @@ function ActiveMeetingContent({
                     )}
                   </div>
                   <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
-                    <div className="bg-black/70 backdrop-blur-sm px-3 py-1 rounded-lg flex items-center gap-2"><span className="text-white text-sm font-semibold">{currentUser.name} (あなた)</span></div>
+                    <div className="bg-black/70 backdrop-blur-sm px-3 py-1 rounded-lg flex items-center gap-2"><span className="text-white text-sm font-semibold">{currentUser.name} ({t('you')})</span></div>
                     {!isMicOn && <div className="bg-red-600 p-2 rounded-lg"><MicOff className="h-4 w-4 text-white" /></div>}
                   </div>
                 </motion.div>
@@ -758,7 +755,7 @@ function ActiveMeetingContent({
                     </div>
                     <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
                       <div className="bg-black/70 backdrop-blur-sm px-3 py-1 rounded-lg flex items-center gap-2">
-                        <span className="text-white text-sm font-semibold">{currentUser.name} (画面共有)</span>
+                        <span className="text-white text-sm font-semibold">{currentUser.name} ({t('screenShare')})</span>
                         <span className="text-xs bg-white text-black px-2 py-0.5 rounded font-bold">YOU</span>
                       </div>
                     </div>
@@ -772,7 +769,6 @@ function ActiveMeetingContent({
                       <VideoTrack
                         trackRef={track}
                         className={`w-full h-full ${track.source === Track.Source.ScreenShare ? 'object-contain bg-black' : 'object-cover'}`}
-                        // ▼▼▼ 修正: カメラ映像の場合のみ左右反転させるスタイルを追加 ▼▼▼
                         style={track.source === Track.Source.Camera ? { transform: 'scaleX(-1)' } : undefined}
                       />
                     </div>
@@ -780,8 +776,8 @@ function ActiveMeetingContent({
                       <div className="bg-black/70 backdrop-blur-sm px-3 py-1 rounded-lg flex items-center gap-2">
                         <span className="text-white text-sm font-semibold">{track.participant.identity}</span>
                         {track.source === Track.Source.ScreenShare ?
-                          <span className="text-xs bg-white text-black px-2 py-0.5 rounded font-bold">画面共有</span> :
-                          <span className="text-xs text-gray-300 bg-gray-600 px-2 py-0.5 rounded">REMOTE</span>
+                          <span className="text-xs bg-white text-black px-2 py-0.5 rounded font-bold">{t('screenShare')}</span> :
+                          <span className="text-xs text-gray-300 bg-gray-600 px-2 py-0.5 rounded">{t('remote')}</span>
                         }
                       </div>
                       {!track.participant.isMicrophoneEnabled && track.source !== Track.Source.ScreenShare && <div className="bg-red-600 p-2 rounded-lg"><MicOff className="h-4 w-4 text-white" /></div>}
@@ -809,7 +805,7 @@ function ActiveMeetingContent({
                         </div>
                         <div>
                           <h3 className="text-white font-bold text-sm">Uri-Tomo</h3>
-                          <p className="text-yellow-100 text-xs">AI翻訳アシスタント</p>
+                          <p className="text-yellow-100 text-xs">{t('aiAssistant')}</p>
                         </div>
                       </div>
                       <button
@@ -824,15 +820,15 @@ function ActiveMeetingContent({
 
                   {/* Description Section */}
                   <div className="border-b border-gray-200 bg-white max-h-48 overflow-y-auto flex-shrink-0">
-                    <div className="sticky top-0 bg-white px-4 pt-4 pb-2 border-b border-gray-100"><div className="flex items-center gap-2"><Bot className="h-4 w-4 text-yellow-600" /><h4 className="font-bold text-gray-900 text-sm">Description</h4><span className="text-xs text-gray-500">({termExplanations.length}件の用語解説)</span></div></div>
+                    <div className="sticky top-0 bg-white px-4 pt-4 pb-2 border-b border-gray-100"><div className="flex items-center gap-2"><Bot className="h-4 w-4 text-yellow-600" /><h4 className="font-bold text-gray-900 text-sm">{t('description')}</h4><span className="text-xs text-gray-500">({termExplanations.length}{t('termExplanationCount')})</span></div></div>
                     <div className="p-4">
                       {termExplanations.length === 0 ? (
                         <div className="text-center py-4">
                           <p className="text-xs text-gray-500">
-                            まだ解説はありません
+                            {t('noExplanations')}
                           </p>
                           <p className="text-xs text-gray-400 mt-1">
-                            会話中の専門用語や分かりにくい表現を自動で解説します
+                            {t('autoExplain')}
                           </p>
                         </div>
                       ) : (
@@ -863,7 +859,7 @@ function ActiveMeetingContent({
                                     {term.explanation}
                                   </p>
                                   <p className="text-xs text-yellow-700 mt-1">
-                                    ��� {term.detectedFrom}
+                                    💬 {term.detectedFrom}
                                   </p>
                                 </div>
                               </div>
@@ -885,7 +881,7 @@ function ActiveMeetingContent({
                     >
                       <div className="flex items-center justify-center gap-2">
                         <Languages className="h-4 w-4" />
-                        <span>Realtime Translation</span>
+                        <span>{t('realtimeTranslation')}</span>
                       </div>
                     </button>
                     <button
@@ -897,7 +893,7 @@ function ActiveMeetingContent({
                     >
                       <div className="flex items-center justify-center gap-2">
                         <MessageSquare className="h-4 w-4" />
-                        <span>チャット</span>
+                        <span>{t('chat')}</span>
                       </div>
                     </button>
                     <button
@@ -909,7 +905,7 @@ function ActiveMeetingContent({
                     >
                       <div className="flex items-center justify-center gap-2">
                         <Users className="h-4 w-4" />
-                        <span>メンバー</span>
+                        <span>{t('members')}</span>
                       </div>
                     </button>
                     <button
@@ -1028,10 +1024,10 @@ function ActiveMeetingContent({
                                   <Languages className="h-8 w-8 text-yellow-600" />
                                 </div>
                                 <p className="text-sm font-semibold text-gray-700 mb-1">
-                                  翻訳待機中...
+                                  {t('waitingForTranslation')}
                                 </p>
                                 <p className="text-xs text-gray-500">
-                                  会話が始まると自動で翻訳されます
+                                  {t('autoTranslateHint')}
                                 </p>
                               </div>
                             </div>
@@ -1076,9 +1072,9 @@ function ActiveMeetingContent({
                                   <div className="mb-3 pb-3 border-b border-gray-200">
                                     <div className="flex items-center gap-2 mb-2">
                                       <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                                        {log.originalLang === 'ja' ? '🇯🇵 日本語' : '🇰🇷 韓国語'}
+                                        {log.originalLang === 'ja' ? '🇯🇵 ' + t('japanese') : '🇰🇷 ' + t('korean')}
                                       </span>
-                                      <span className="text-xs text-gray-500">Original</span>
+                                      <span className="text-xs text-gray-500">{t('original')}</span>
                                     </div>
                                     <p className="text-base text-gray-900 leading-relaxed">
                                       {log.originalText}
@@ -1090,12 +1086,12 @@ function ActiveMeetingContent({
                                     <div className="flex items-center gap-2 mb-2">
                                       <Languages className="h-4 w-4 text-yellow-700" />
                                       <span className="text-xs font-bold text-yellow-800 bg-yellow-200 px-2 py-1 rounded">
-                                        {log.originalLang === 'ja' ? '🇰🇷 韓国語訳' : '🇯🇵 日本語訳'}
+                                        {log.originalLang === 'ja' ? '🇰🇷 ' + t('koreanTrans') : '🇯🇵 ' + t('japaneseTrans')}
                                       </span>
-                                      <span className="text-xs text-yellow-700">Translation</span>
+                                      <span className="text-xs text-yellow-700">{t('translation')}</span>
                                       {index === translationLogs.length - 1 && (
                                         <span className="text-xs font-bold text-red-600 bg-red-100 px-2 py-1 rounded ml-auto animate-pulse">
-                                          LIVE
+                                          {t('live')}
                                         </span>
                                       )}
                                     </div>
@@ -1140,7 +1136,7 @@ function ActiveMeetingContent({
                                 <MessageSquare className="h-6 w-6 text-gray-400" />
                               </div>
                               <p className="text-sm text-gray-500">
-                                まだメッセージがありません
+                                {t('noMessages')}
                               </p>
                             </div>
                           ) : (
@@ -1219,7 +1215,7 @@ function ActiveMeetingContent({
                               <div className="flex items-center justify-between mb-3">
                                 <h4 className="text-sm font-bold text-gray-900 flex items-center gap-2">
                                   <Smile className="h-4 w-4 text-yellow-600" />
-                                  スタンプを選択
+                                  {t('selectSticker')}
                                 </h4>
                                 <button
                                   onClick={() => setShowStickerPicker(false)}
@@ -1248,7 +1244,7 @@ function ActiveMeetingContent({
                                       }, 0);
                                     }}
                                     className="text-3xl p-3 rounded-lg hover:bg-yellow-200 transition-all transform hover:scale-110 active:scale-95"
-                                    title="スタンプの追加"
+                                    title={t('addSticker')}
                                   >
                                     {sticker}
                                   </button>
@@ -1262,7 +1258,7 @@ function ActiveMeetingContent({
                             <button
                               onClick={handleFileAttach}
                               className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                              title="ファイルを添付"
+                              title={t('attachFile')}
                             >
                               <Paperclip className="h-5 w-5" />
                             </button>
@@ -1274,7 +1270,7 @@ function ActiveMeetingContent({
                                 ? 'bg-yellow-200 text-yellow-700'
                                 : 'text-gray-600 hover:bg-gray-100'
                                 }`}
-                              title="スタンプを選択"
+                              title={t('selectSticker')}
                             >
                               <Smile className="h-5 w-5" />
                             </button>
@@ -1285,7 +1281,7 @@ function ActiveMeetingContent({
                               value={chatInput}
                               onChange={(e) => setChatInput(e.target.value)}
                               onKeyPress={(e) => e.key === 'Enter' && handleSendChat()}
-                              placeholder="メッセージを入力..."
+                              placeholder={t('typeMessage')}
                               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm"
                             />
                             <Button
@@ -1305,10 +1301,10 @@ function ActiveMeetingContent({
                       <div className="h-full overflow-y-auto p-4">
                         <div className="mb-4">
                           <h4 className="text-sm font-bold text-gray-900 mb-1">
-                            参加者 ({participants.length + 1}人)
+                            {t('participantsCount')} ({participants.length + 1})
                           </h4>
                           <p className="text-xs text-gray-500">
-                            {participants.filter(p => p.isMicrophoneEnabled).length + (isMicOn ? 1 : 0)}人が発言中
+                            {participants.filter(p => p.isMicrophoneEnabled).length + (isMicOn ? 1 : 0)}{t('speaking')}
                           </p>
                         </div>
 
@@ -1332,7 +1328,7 @@ function ActiveMeetingContent({
                                 </span>
                                 <Pin className="h-3 w-3 text-yellow-600" />
                               </div>
-                              <p className="text-xs text-gray-600">AI翻訳アシスタント</p>
+                              <p className="text-xs text-gray-600">{t('aiAssistant')}</p>
                             </div>
                             <div className="flex items-center gap-1">
                               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
@@ -1353,7 +1349,7 @@ function ActiveMeetingContent({
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
                                 <span className="text-sm font-semibold text-gray-900">
-                                  {currentUser.name} (あなた)
+                                  {currentUser.name} ({t('you')})
                                 </span>
                                 <span className="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded">
                                   JA
@@ -1390,7 +1386,7 @@ function ActiveMeetingContent({
                                     {participant.identity || 'Unknown'}
                                   </span>
                                   <span className="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded">
-                                    REMOTE
+                                    {t('remote')}
                                   </span>
                                 </div>
                               </div>
@@ -1436,7 +1432,7 @@ function ActiveMeetingContent({
       {showScreenPickerModal && (
         <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-8">
           <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[80vh] flex flex-col overflow-hidden shadow-2xl">
-            <div className="p-4 border-b flex justify-between items-center bg-gray-50"><h3 className="font-bold flex items-center gap-2"><Monitor className="text-blue-600" /> 共有する画面を選択</h3><button onClick={handleScreenPickerCancel}><X className="h-5 w-5" /></button></div>
+            <div className="p-4 border-b flex justify-between items-center bg-gray-50"><h3 className="font-bold flex items-center gap-2"><Monitor className="text-blue-600" /> {t('selectScreenToShare')}</h3><button onClick={handleScreenPickerCancel}><X className="h-5 w-5" /></button></div>
             <div className="p-6 overflow-y-auto bg-gray-100 grid grid-cols-2 md:grid-cols-3 gap-4">
               {availableScreens.map(s => (
                 <button key={s.id} onClick={() => handleScreenSelect(s.id)} className="flex flex-col gap-2 p-2 rounded-xl hover:bg-blue-50 ring-1 ring-gray-200 hover:ring-blue-400 bg-white transition-all">
@@ -1445,7 +1441,7 @@ function ActiveMeetingContent({
                 </button>
               ))}
             </div>
-            <div className="p-4 border-t bg-white flex justify-end"><Button onClick={handleScreenPickerCancel} variant="outline">キャンセル</Button></div>
+            <div className="p-4 border-t bg-white flex justify-end"><Button onClick={handleScreenPickerCancel} variant="outline">{t('cancel')}</Button></div>
           </div>
         </div>
       )}
@@ -1455,73 +1451,73 @@ function ActiveMeetingContent({
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center" onClick={() => setShowSettings(false)}>
           <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white rounded-2xl w-full max-w-2xl mx-4 max-h-[80vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="bg-gradient-to-r from-yellow-400 to-amber-400 px-6 py-4 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3"><div className="w-10 h-10 bg-white rounded-full flex items-center justify-center"><Settings className="h-5 w-5 text-yellow-600" /></div><div><h2 className="text-white font-bold text-lg">システム設定</h2><p className="text-yellow-100 text-xs">Device & Meeting Settings</p></div></div>
+              <div className="flex items-center gap-3"><div className="w-10 h-10 bg-white rounded-full flex items-center justify-center"><Settings className="h-5 w-5 text-yellow-600" /></div><div><h2 className="text-white font-bold text-lg">{t('systemSettings')}</h2><p className="text-yellow-100 text-xs">{t('deviceAndMeetingSettings')}</p></div></div>
               <Button variant="ghost" onClick={() => setShowSettings(false)} className="text-white hover:bg-white/20 rounded-full w-8 h-8 p-0">✕</Button>
             </div>
 
             <div className="overflow-y-auto p-6 space-y-6">
               {/* Audio Settings */}
               <div className="space-y-4">
-                <div className="flex items-center gap-2 border-b border-gray-200 pb-2"><Mic className="h-5 w-5 text-gray-700" /><h3 className="font-bold text-gray-900">オーディオ設定</h3></div>
+                <div className="flex items-center gap-2 border-b border-gray-200 pb-2"><Mic className="h-5 w-5 text-gray-700" /><h3 className="font-bold text-gray-900">{t('audioSettings')}</h3></div>
                 <div className="grid gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">マイク</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">{t('mic')}</label>
                     <select
                       value={selectedMicId}
                       onChange={(e) => handleDeviceChange('audioinput', e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 text-sm bg-white"
                     >
-                      {!selectedMicId && <option value="" disabled>デバイスを選択中...</option>}
+                      {!selectedMicId && <option value="" disabled>{t('selectingDevice')}</option>}
                       {mics.map(m => <option key={m.deviceId} value={m.deviceId}>{m.label || `Microphone ${m.deviceId.slice(0, 5)}...`}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">スピーカー</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">{t('speaker')}</label>
                     <select
                       value={selectedSpeakerId}
                       onChange={(e) => handleDeviceChange('audiooutput', e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 text-sm bg-white"
                       disabled={speakers.length === 0}
                     >
-                      {!selectedSpeakerId && <option value="" disabled>デバイスを選択中...</option>}
+                      {!selectedSpeakerId && <option value="" disabled>{t('selectingDevice')}</option>}
                       {speakers.map(s => <option key={s.deviceId} value={s.deviceId}>{s.label || `Speaker ${s.deviceId.slice(0, 5)}...`}</option>)}
                     </select>
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><p className="text-sm font-semibold text-gray-900">ノイズキャンセル</p><p className="text-xs text-gray-500">バックグラウンドノイズを低減</p></div><input type="checkbox" className="toggle" defaultChecked /></div>
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><p className="text-sm font-semibold text-gray-900">{t('noiseCancellation')}</p><p className="text-xs text-gray-500">{t('noiseCancellationDesc')}</p></div><input type="checkbox" className="toggle" defaultChecked /></div>
                 </div>
               </div>
 
               {/* Video Settings */}
               <div className="space-y-4">
-                <div className="flex items-center gap-2 border-b border-gray-200 pb-2"><Video className="h-5 w-5 text-gray-700" /><h3 className="font-bold text-gray-900">ビデオ設定</h3></div>
+                <div className="flex items-center gap-2 border-b border-gray-200 pb-2"><Video className="h-5 w-5 text-gray-700" /><h3 className="font-bold text-gray-900">{t('videoSettings')}</h3></div>
                 <div className="grid gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">カメラ</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">{t('camera')}</label>
                     <select
                       value={selectedCameraId}
                       onChange={(e) => handleDeviceChange('videoinput', e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 text-sm bg-white"
                     >
-                      {!selectedCameraId && <option value="" disabled>デバイスを選択中...</option>}
+                      {!selectedCameraId && <option value="" disabled>{t('selectingDevice')}</option>}
                       {cameras.map(c => <option key={c.deviceId} value={c.deviceId}>{c.label || `Camera ${c.deviceId.slice(0, 5)}...`}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">解像度</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">{t('resolution')}</label>
                     <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 text-sm bg-white"><option>HD (720p)</option><option>Full HD (1080p)</option><option>4K (2160p)</option></select>
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><p className="text-sm font-semibold text-gray-900">ビューティーフィルター</p><p className="text-xs text-gray-500">映像を自動補正</p></div><input type="checkbox" className="toggle" /></div>
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><p className="text-sm font-semibold text-gray-900">{t('beautyFilter')}</p><p className="text-xs text-gray-500">{t('beautyFilterDesc')}</p></div><input type="checkbox" className="toggle" /></div>
                 </div>
               </div>
 
               {/* Translation Settings */}
               <div className="space-y-4">
-                <div className="flex items-center gap-2 border-b border-gray-200 pb-2"><Languages className="h-5 w-5 text-yellow-600" /><h3 className="font-bold text-gray-900">Uri-Tomo AI翻訳設定</h3></div>
+                <div className="flex items-center gap-2 border-b border-gray-200 pb-2"><Languages className="h-5 w-5 text-yellow-600" /><h3 className="font-bold text-gray-900">{t('translationSettings')}</h3></div>
                 <div className="grid gap-4">
-                  <div className="flex items-center justify-between p-3 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-200"><div><p className="text-sm font-semibold text-gray-900">リアルタイム翻訳</p><p className="text-xs text-gray-500">日韓自動翻訳を有効化</p></div><input type="checkbox" className="toggle" defaultChecked /></div>
-                  <div className="flex items-center justify-between p-3 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-200"><div><p className="text-sm font-semibold text-gray-900">用語解説 (Description)</p><p className="text-xs text-gray-500">専門用語を自動で解説</p></div><input type="checkbox" className="toggle" defaultChecked /></div>
+                  <div className="flex items-center justify-between p-3 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-200"><div><p className="text-sm font-semibold text-gray-900">{t('realtimeTranslation')}</p><p className="text-xs text-gray-500">{t('realtimeTranslationDesc')}</p></div><input type="checkbox" className="toggle" defaultChecked /></div>
+                  <div className="flex items-center justify-between p-3 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-200"><div><p className="text-sm font-semibold text-gray-900">{t('termDescription')}</p><p className="text-xs text-gray-500">{t('termDescriptionDesc')}</p></div><input type="checkbox" className="toggle" defaultChecked /></div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">翻訳言語ペア</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">{t('translationPair')}</label>
                     <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 text-sm bg-white"><option>🇯🇵 日本語 ⇄ 🇰🇷 韓国語</option><option>🇯🇵 日本語 ⇄ 🇺🇸 英語</option><option>🇰🇷 韓国語 ⇄ 🇺🇸 英語</option></select>
                   </div>
                 </div>
@@ -1529,17 +1525,17 @@ function ActiveMeetingContent({
 
               {/* General Settings */}
               <div className="space-y-4">
-                <div className="flex items-center gap-2 border-b border-gray-200 pb-2"><Settings className="h-5 w-5 text-gray-700" /><h3 className="font-bold text-gray-900">一般設定</h3></div>
+                <div className="flex items-center gap-2 border-b border-gray-200 pb-2"><Settings className="h-5 w-5 text-gray-700" /><h3 className="font-bold text-gray-900">{t('generalSettings')}</h3></div>
                 <div className="grid gap-4">
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><p className="text-sm font-semibold text-gray-900">会議の自動録画</p><p className="text-xs text-gray-500">開始時に自動で記録</p></div><input type="checkbox" className="toggle" defaultChecked /></div>
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><p className="text-sm font-semibold text-gray-900">通知音</p><p className="text-xs text-gray-500">参加者の入退室を通知</p></div><input type="checkbox" className="toggle" defaultChecked /></div>
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><p className="text-sm font-semibold text-gray-900">{t('autoRecord')}</p><p className="text-xs text-gray-500">{t('autoRecordDesc')}</p></div><input type="checkbox" className="toggle" defaultChecked /></div>
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><p className="text-sm font-semibold text-gray-900">{t('notificationSound')}</p><p className="text-xs text-gray-500">{t('notificationSoundDesc')}</p></div><input type="checkbox" className="toggle" defaultChecked /></div>
                 </div>
               </div>
             </div>
 
             <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 flex justify-end gap-3 shrink-0">
-              <Button variant="ghost" onClick={() => setShowSettings(false)} className="px-6 py-2 text-gray-700 hover:bg-gray-200 rounded-lg">キャンセル</Button>
-              <Button onClick={() => setShowSettings(false)} className="px-6 py-2 bg-yellow-400 hover:bg-yellow-500 text-gray-900 rounded-lg font-semibold">保存</Button>
+              <Button variant="ghost" onClick={() => setShowSettings(false)} className="px-6 py-2 text-gray-700 hover:bg-gray-200 rounded-lg">{t('cancel')}</Button>
+              <Button onClick={() => setShowSettings(false)} className="px-6 py-2 bg-yellow-400 hover:bg-yellow-500 text-gray-900 rounded-lg font-semibold">{t('save')}</Button>
             </div>
           </motion.div>
         </motion.div>
@@ -1573,10 +1569,10 @@ function ActiveMeetingContent({
                   <PhoneOff className="h-10 w-10 text-red-600" />
                 </div>
                 <h2 className="text-white font-bold text-2xl mb-2">
-                  ミーティングを終了しますか？
+                  {t('endMeetingConfirm')}
                 </h2>
                 <p className="text-red-100 text-sm">
-                  End Meeting
+                  {t('endMeeting')}
                 </p>
               </motion.div>
             </div>
@@ -1594,7 +1590,7 @@ function ActiveMeetingContent({
                       <h3 className="font-bold text-gray-900 text-sm">{meetingTitle}</h3>
                       <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
                         <Clock className="h-3 w-3" />
-                        <span>時間: {formatDuration(duration)}</span>
+                        <span>{t('time')}: {formatDuration(duration)}</span>
                       </div>
                     </div>
                   </div>
@@ -1602,17 +1598,17 @@ function ActiveMeetingContent({
                   <div className="grid grid-cols-3 gap-3">
                     <div className="bg-white rounded-lg p-3 text-center border border-gray-200">
                       <Users className="h-4 w-4 text-gray-600 mx-auto mb-1" />
-                      <p className="text-xs text-gray-500">参加者</p>
+                      <p className="text-xs text-gray-500">{t('participantsCount')}</p>
                       <p className="text-lg font-bold text-gray-900">{participants.length + 2}</p>
                     </div>
                     <div className="bg-white rounded-lg p-3 text-center border border-gray-200">
                       <Languages className="h-4 w-4 text-yellow-600 mx-auto mb-1" />
-                      <p className="text-xs text-gray-500">翻訳</p>
+                      <p className="text-xs text-gray-500">{t('translationCount')}</p>
                       <p className="text-lg font-bold text-gray-900">{translationLogs.length}</p>
                     </div>
                     <div className="bg-white rounded-lg p-3 text-center border border-gray-200">
                       <MessageSquare className="h-4 w-4 text-blue-600 mx-auto mb-1" />
-                      <p className="text-xs text-gray-500">チャット</p>
+                      <p className="text-xs text-gray-500">{t('chatCount')}</p>
                       <p className="text-lg font-bold text-gray-900">{chatMessages.length}</p>
                     </div>
                   </div>
@@ -1624,12 +1620,12 @@ function ActiveMeetingContent({
                     <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
                     <div>
                       <p className="text-sm font-semibold text-amber-900 mb-1">
-                        終了すると以下の処理が行われます
+                        {t('endMeetingWarningTitle')}
                       </p>
                       <ul className="text-xs text-amber-800 space-y-1">
-                        <li>• ミーティング記録を自動保存</li>
-                        <li>• Uri-TomoがAIサマリーを生成</li>
-                        <li>• 議事録ページに移動します</li>
+                        <li>• {t('endMeetingWarningList1')}</li>
+                        <li>• {t('endMeetingWarningList2')}</li>
+                        <li>• {t('endMeetingWarningList3')}</li>
                       </ul>
                     </div>
                   </div>
@@ -1643,14 +1639,14 @@ function ActiveMeetingContent({
                 onClick={() => setShowEndMeetingConfirm(false)}
                 className="flex-1 px-6 py-3 bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 rounded-xl font-semibold transition-all"
               >
-                キャンセル
+                {t('cancel')}
               </Button>
               <Button
                 onClick={confirmEndMeeting}
                 className="flex-1 px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
               >
                 <PhoneOff className="h-4 w-4 mr-2 inline" />
-                終了する
+                {t('endMeetingAction')}
               </Button>
             </div>
           </motion.div>
@@ -1668,7 +1664,6 @@ function ActiveMeetingContent({
         editedUserName={editedUserName}
         editedUserAvatar={editedUserAvatar}
         editedAvatarType={editedAvatarType}
-        systemLanguage={systemLanguage}
         onNameChange={setEditedUserName}
         onAvatarChange={setEditedUserAvatar}
         onAvatarTypeChange={setEditedAvatarType}
@@ -1700,20 +1695,28 @@ export function ActiveMeeting() {
 
   useEffect(() => {
     if (!livekitToken || !livekitUrl) {
-      toast.error('接続情報がありません。');
+      toast.error(t('noConnectionInfo'));
       navigate(`/meeting-setup/${id}`);
     }
   }, [livekitToken, livekitUrl, navigate, id]);
 
-  if (!livekitToken || !livekitUrl) return null;
+  console.log(`[ActiveMeeting] Connecting to LiveKit URL: ${livekitUrl} with Token length: ${livekitToken?.length}`);
 
   return (
     <LiveKitRoom
       token={livekitToken}
       serverUrl={livekitUrl}
+      connectOptions={{
+        autoSubscribe: true,
+      }}
       video={initialVideoOn ? { deviceId: videoDeviceId } : false}
       audio={initialMicOn ? { deviceId: audioDeviceId } : false}
       onDisconnected={() => navigate('/')}
+      onError={(err) => {
+        console.error("❌ LiveKit Connection Error:", err);
+        // Specifically catch the DNS error pattern from the user report if possible, though it's usually generic here
+        toast.error(`${t('connectionError')}: ${err.message || t('connectionError')}`);
+      }}
       className="h-screen w-full bg-gray-900"
     >
       <ActiveMeetingContent
@@ -1723,6 +1726,7 @@ export function ActiveMeeting() {
         initialSettings={{ isMicOn: initialMicOn, isVideoOn: initialVideoOn }}
         wsSessionId={wsSessionId}
         wsToken={wsToken}
+        livekitToken={livekitToken}
       />
       <RoomAudioRenderer />
     </LiveKitRoom>

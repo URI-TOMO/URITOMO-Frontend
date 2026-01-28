@@ -39,3 +39,7 @@ dist-builder/
 # Generated config files (TS -> JS)
 vite.config.js
 vite.config.d.ts
+
+# Markdown documentation
+*.md
+!README.md
