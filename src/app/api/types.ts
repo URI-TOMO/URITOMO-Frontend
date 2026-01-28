@@ -39,6 +39,7 @@ export interface SignupRequest {
 export interface MainUser {
   display_name: string;
   email: string;
+  lang: string;
 }
 
 export interface Friend {

@@ -69,6 +69,10 @@ export function Home() {
         setUserName(data.user.display_name);
         setUserEmail(data.user.email);
 
+        if (data.user.lang && ['ja', 'ko', 'en'].includes(data.user.lang)) {
+          setSystemLanguage(data.user.lang as 'ja' | 'ko' | 'en');
+        }
+
         // 2. Update Rooms
         const mappedRooms: Room[] = data.rooms.map(room => ({
           id: room.id,
