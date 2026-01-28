@@ -131,7 +131,7 @@ export function Home() {
 
       } catch (error) {
         console.error('Failed to fetch main data:', error);
-        toast.error('データを読み込めませんでした');
+        toast.error(t('dataLoadError'));
 
         // Fallback to localStorage on error
         const savedRooms = JSON.parse(localStorage.getItem('uri-tomo-rooms') || '[]');
@@ -261,7 +261,7 @@ export function Home() {
       window.dispatchEvent(new Event('contacts-updated'));
 
       // Show success message
-      toast.success(t('friendAdded') || '友達が追加されました', {
+      toast.success(t('friendAdded'), {
         description: `${friendData.name} (${friendData.email})`,
         duration: 4000,
       });
@@ -275,9 +275,9 @@ export function Home() {
 
       // Check if the error is because email doesn't exist
       if (error.response?.status === 404) {
-        toast.error(t('emailNotFound') || 'そのメールアドレスのユーザーが見つかりませんでした');
+        toast.error(t('emailNotFound'));
       } else {
-        toast.error(t('friendAddFailed') || '友達の追加に失敗しました');
+        toast.error(t('friendAddFailed'));
       }
     } finally {
       setIsCheckingEmail(false);
@@ -610,7 +610,7 @@ export function Home() {
             setShowProfileSettings(false);
           } catch (error) {
             console.error('Profile update failed:', error);
-            toast.error(t('updateProfileFailed') || 'Profile update failed');
+            toast.error(t('updateProfileFailed'));
           }
         }}
       />

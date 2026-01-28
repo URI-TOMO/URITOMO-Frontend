@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { toast } from 'sonner';
+import { getTranslation } from '../i18n/translations';
 
 const baseURL = import.meta.env.DEV
   ? ''
@@ -112,29 +113,29 @@ ${JSON.stringify({
           // 토큰 삭제 및 로그인 페이지로 리다이렉트 처리 가능
           localStorage.removeItem('uri-tomo-token');
           // window.location.href = '/login'; // 필요 시 주석 해제
-          toast.error('세션이 만료되었습니다. 다시 로그인해주세요.');
+          toast.error(getTranslation('sessionExpired'));
           break;
         case 403: // 권한 없음
-          toast.error('접근 권한이 없습니다.');
+          toast.error(getTranslation('accessDenied'));
           break;
         case 500: // 서버 에러
-          toast.error('서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+          toast.error(getTranslation('serverError'));
           break;
         case 422:
           // Validation Error handled by component
           break;
         default:
-          toast.error(data?.detail || '알 수 없는 오류가 발생했습니다.');
+          toast.error(data?.detail || getTranslation('unknownError'));
       }
     } else if (error.request) {
       // 요청은 보냈으나 응답을 못 받은 경우 (네트워크 에러)
       if (error.code === 'ECONNABORTED') {
-        toast.error(`백엔드 서버에 연결할 수 없습니다.\n서버가 실행 중인지 확인해주세요. (${baseURL})`);
+        toast.error(`${getTranslation('backendConnectionError')} (${baseURL})`);
       } else {
-        toast.error('서버와 연결할 수 없습니다. 네트워크를 확인해주세요.');
+        toast.error(getTranslation('networkError'));
       }
     } else {
-      toast.error('요청 설정 중 오류가 발생했습니다.');
+      toast.error(getTranslation('requestSetupError'));
     }
 
     // 📝 터미널(메인 프로세스) 로깅 추가

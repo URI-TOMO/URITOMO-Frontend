@@ -488,16 +488,7 @@ export function MeetingSetup() {
         onNameChange={setEditedUserName}
         onAvatarChange={setEditedUserAvatar}
         onAvatarTypeChange={setEditedAvatarType}
-        onAvatarImageUpload={(e) => {
-          const file = e.target.files?.[0];
-          if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-              setEditedUserAvatar(reader.result as string);
-            };
-            reader.readAsDataURL(file);
-          }
-        }}
+
         onSave={() => {
           setUserName(editedUserName);
           setUserAvatar(editedUserAvatar);

@@ -154,7 +154,7 @@ export function MeetingRoom() {
     }
 
     if (!id) {
-      toast.error('Room ID is missing');
+      toast.error(t('roomIdMissing'));
       return;
     }
 
@@ -173,7 +173,7 @@ export function MeetingRoom() {
 
       setParticipants([...participants, newParticipant]);
 
-      toast.success(t('memberAdded') || 'メンバーが追加されました', {
+      toast.success(t('memberAdded'), {
         description: `${result.name} (${result.locale})`,
         duration: 4000,
       });
@@ -186,18 +186,18 @@ export function MeetingRoom() {
       if (error.response?.status === 404) {
         const detail = error.response?.data?.detail || '';
         if (detail.includes('User')) {
-          toast.error(t('emailNotFound') || 'そのメールアドレスのユーザーが見つかりませんでした');
+          toast.error(t('emailNotFound'));
         } else if (detail.includes('Room')) {
-          toast.error(t('roomNotFound') || 'ルームが見つかりませんでした');
+          toast.error(t('roomNotFound'));
         } else {
-          toast.error(t('notFound') || 'ユーザーまたはルームが見つかりませんでした');
+          toast.error(t('notFound'));
         }
       } else if (error.response?.status === 409) {
-        toast.error(t('memberAlreadyExists') || 'このメンバーはすでにルームに存在します');
+        toast.error(t('memberAlreadyExists'));
       } else if (error.response?.status === 403) {
-        toast.error(t('noPermission') || 'メンバーを追加する権限がありません');
+        toast.error(t('noPermission'));
       } else {
-        toast.error(t('memberAddFailed') || 'メンバーの追加に失敗しました');
+        toast.error(t('memberAddFailed'));
       }
     } finally {
       setIsAddingMember(false);
@@ -270,7 +270,7 @@ export function MeetingRoom() {
         setRoomDetail({ participant_count: data.participant_count });
       } catch (error) {
         console.error('Failed to fetch room detail:', error);
-        toast.error(t('roomLoadError') || 'Failed to load room details');
+        toast.error(t('roomLoadError'));
       } finally {
         setIsLoading(false);
       }
@@ -422,7 +422,7 @@ export function MeetingRoom() {
               <button
                 onClick={() => setShowRoomSettings(true)}
                 className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-all"
-                title={t('roomSettings') || 'ルーム設定'}
+                title={t('roomSettings')}
               >
                 <Settings className="h-5 w-5" />
               </button>
@@ -737,16 +737,7 @@ export function MeetingRoom() {
           onNameChange={setEditedUserName}
           onAvatarChange={setEditedUserAvatar}
           onAvatarTypeChange={setEditedAvatarType}
-          onAvatarImageUpload={(e) => {
-            const file = e.target.files?.[0];
-            if (file) {
-              const reader = new FileReader();
-              reader.onloadend = () => {
-                setEditedUserAvatar(reader.result as string);
-              };
-              reader.readAsDataURL(file);
-            }
-          }}
+
           onSave={() => {
             setUserName(editedUserName);
             setUserAvatar(editedUserAvatar);
