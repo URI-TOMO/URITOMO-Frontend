@@ -9,13 +9,13 @@ export class MeetingSocket {
     private reconnectTimer: any = null;
     private isIntentionalClose = false;
 
-    constructor(sessionId: string) {
+    constructor(roomId: string) {
         // Determine WebSocket URL based on environment or default
         const apiBaseUrl = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || 'http://10.0.255.80:8000';
         const wsBaseUrl = apiBaseUrl.replace(/^http/, 'ws');
         const token = localStorage.getItem('uri-tomo-token');
 
-        this.url = `${wsBaseUrl}/api/v1/meeting/${sessionId}?token=${token}`;
+        this.url = `${wsBaseUrl}/meeting/${roomId}?token=${token}`;
     }
 
     public connect() {
@@ -25,13 +25,30 @@ export class MeetingSocket {
         }
 
         this.isIntentionalClose = false;
-        console.log(`🔌 Connecting to WebSocket: ${this.url}`);
+
+        const connectingLog = {
+            type: 'WS_CONNECTING',
+            url: this.url
+        };
+        console.log(`🔌 Connecting to WebSocket: ${this.url}`, connectingLog);
+
+        if ((window as any).electron?.sendSignal) {
+            (window as any).electron.sendSignal('log', connectingLog);
+        }
 
         try {
             this.socket = new WebSocket(this.url);
 
             this.socket.onopen = () => {
-                console.log('✅ WebSocket Connected');
+                const openLog = {
+                    type: 'WS_OPEN',
+                    url: this.url
+                };
+                console.log('✅ WebSocket Connected', openLog);
+
+                if ((window as any).electron?.sendSignal) {
+                    (window as any).electron.sendSignal('log', openLog);
+                }
                 if (this.reconnectTimer) {
                     clearTimeout(this.reconnectTimer);
                     this.reconnectTimer = null;
@@ -41,7 +58,20 @@ export class MeetingSocket {
             this.socket.onmessage = (event) => {
                 try {
                     const message: WSMessage = JSON.parse(event.data);
-                    // console.log('📩 WS Message:', message);
+
+                    const logData = {
+                        type: 'WS_RECEIVE',
+                        url: this.url,
+                        data: message
+                    };
+
+                    console.log('[WebSocket Log]', logData);
+
+                    // Send to terminal if electron is available
+                    if ((window as any).electron?.sendSignal) {
+                        (window as any).electron.sendSignal('log', logData);
+                    }
+
                     this.notifyListeners(message);
                 } catch (e) {
                     console.error('❌ Failed to parse WS message:', event.data);
@@ -49,7 +79,18 @@ export class MeetingSocket {
             };
 
             this.socket.onclose = (event) => {
-                console.log(`🔌 WebSocket Closed: ${event.code} ${event.reason}`);
+                const logData = {
+                    type: 'WS_CLOSE',
+                    url: this.url,
+                    code: event.code,
+                    reason: event.reason
+                };
+                console.log(`🔌 WebSocket Closed: ${event.code} ${event.reason}`, logData);
+
+                if ((window as any).electron?.sendSignal) {
+                    (window as any).electron.sendSignal('log', logData);
+                }
+
                 if (!this.isIntentionalClose && event.code !== 1008) { // 1008 is Policy Violation (e.g. invalid session)
                     this.scheduleReconnect();
                 }
@@ -57,6 +98,13 @@ export class MeetingSocket {
 
             this.socket.onerror = (error) => {
                 console.error('❌ WebSocket Error:', error);
+                if ((window as any).electron?.sendSignal) {
+                    (window as any).electron.sendSignal('log', {
+                        type: 'WS_ERROR',
+                        url: this.url,
+                        error: 'WebSocket Error'
+                    });
+                }
             };
 
         } catch (e) {
@@ -78,12 +126,36 @@ export class MeetingSocket {
     }
 
     public send(type: WSMessageType, data?: any) {
+        const payload = { type, ...data };
+
         if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
-            console.warn('⚠️ Cannot send message, WebSocket not open');
+            const errorLog = {
+                type: 'WS_SEND_FAILED',
+                reason: 'WebSocket not open',
+                state: this.socket?.readyState,
+                url: this.url,
+                data: payload
+            };
+            console.error('[WebSocket Log] FAILED_TO_SEND', errorLog);
+
+            if ((window as any).electron?.sendSignal) {
+                (window as any).electron.sendSignal('log', errorLog);
+            }
             return;
         }
 
-        const message = JSON.stringify({ type, ...data });
+        const logData = {
+            type: 'WS_SEND',
+            url: this.url,
+            data: payload
+        };
+        console.log('[WebSocket Log]', logData);
+
+        if ((window as any).electron?.sendSignal) {
+            (window as any).electron.sendSignal('log', logData);
+        }
+
+        const message = JSON.stringify(payload);
         this.socket.send(message);
     }
 

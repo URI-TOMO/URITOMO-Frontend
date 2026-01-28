@@ -12,6 +12,7 @@ import { Button } from '../components/ui/button';
 import { ProfileSettingsModal, SystemSettingsModal } from '../components/SettingsModals';
 import { toast } from 'sonner';
 import { meetingApi } from '../api/meeting';
+import { MeetingSocket } from '../meeting/websocket/client';
 // LiveKit imports
 import {
   LiveKitRoom,
@@ -134,6 +135,7 @@ function ActiveMeetingContent({
   const chatInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const socketRef = useRef<MeetingSocket | null>(null);
 
 
   // Profile Settings State
@@ -183,7 +185,76 @@ function ActiveMeetingContent({
           toast.error(t('liveSessionFailed'));
         });
     }
-  }, [room, room?.state, meetingId]);
+  }, [room, room?.state, meetingId, livekitToken]);
+
+  // --- Logic 1.6: WebSocket Connection (Indepedent of LiveKit) ---
+  useEffect(() => {
+    if (!meetingId) return;
+
+    // WebSocket Connection
+    // Note: Use meetingId (the room UUID) instead of LiveKit sessionId (sid) 
+    // because the backend validates against the Room table.
+    console.log('🔄 Initializing WebSocket connection for room:', meetingId);
+    const ws = new MeetingSocket(meetingId);
+    socketRef.current = ws;
+    ws.connect();
+
+    const unsubscribe = ws.onMessage((msg) => {
+      if (msg.type === 'chat') {
+        const chatData = msg.data;
+        setChatMessages(prev => [
+          ...prev,
+          {
+            id: chatData.id || Date.now().toString(),
+            sender: chatData.display_name,
+            message: chatData.text,
+            timestamp: new Date(chatData.created_at || Date.now())
+          }
+        ]);
+      } else if (msg.type === 'room_connected') {
+        toast.success(`Connected to room: ${msg.data.room_id}`);
+      } else if (msg.type === 'translation') {
+        const transData = msg.data;
+        // Support multiple formats of translation broadcast
+        const speaker = transData.participant_name || transData.speaker || 'Unknown';
+        const originalText = transData.Original || transData.original_text || '';
+        const translatedText = transData.translated || transData.translated_text || '';
+        const lang = (transData.lang?.toLowerCase().includes('ja') || transData.source_lang === 'ja') ? 'ja' : 'ko';
+
+        setTranslationLogs(prev => [
+          ...prev,
+          {
+            id: transData.id || Date.now().toString(),
+            speaker,
+            originalText,
+            translatedText,
+            originalLang: lang as 'ja' | 'ko',
+            timestamp: new Date(transData.timestamp || transData.created_at || Date.now())
+          }
+        ]);
+      } else if (msg.type === 'explanation') {
+        const expData = msg.data?.data || msg.data;
+        setTermExplanations(prev => [
+          ...prev,
+          {
+            id: expData.id || Date.now().toString(),
+            term: expData.term || 'Unknown Term',
+            explanation: expData.explanation || '',
+            detectedFrom: expData.detectedFrom || '',
+            timestamp: new Date()
+          }
+        ]);
+      } else if (msg.type === 'error') {
+        toast.error(`WebSocket Error: ${msg.message}`);
+      }
+    });
+
+    return () => {
+      console.log('🔌 Disconnecting WebSocket');
+      unsubscribe();
+      ws.disconnect();
+    };
+  }, [meetingId]);
 
   // --- Logic 1.6: Track Subscription Event Listener ---
   useEffect(() => {
@@ -316,9 +387,13 @@ function ActiveMeetingContent({
   };
 
   const handleSendChat = () => {
-    if (chatInput.trim()) {
-      setChatMessages([...chatMessages, { id: Date.now().toString(), sender: currentUser.name, message: chatInput, timestamp: new Date() }]);
+    if (chatInput.trim() && socketRef.current) {
+      // 自分の言語設定に合わせて送信（デフォルトは日本語）
+      const lang = systemLanguage === 'ko' ? 'Korean' : 'Japanese';
+      socketRef.current.sendChat(chatInput, lang);
       setChatInput('');
+    } else if (!socketRef.current) {
+      toast.error('チャットサーバーに接続されていません');
     }
   };
 
