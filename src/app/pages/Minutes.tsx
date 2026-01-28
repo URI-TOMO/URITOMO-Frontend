@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { motion } from 'motion/react';
 import { ArrowLeft, Download, Users, Clock, Calendar, Languages, Bot, FileText, Sparkles, RefreshCw } from 'lucide-react';
 
 import { motion } from 'framer-motion';

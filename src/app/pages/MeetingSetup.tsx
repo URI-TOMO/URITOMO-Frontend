@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'motion/react';
 import { motion } from 'framer-motion';
 import {
   Video,
@@ -205,6 +204,17 @@ export function MeetingSetup() {
       const { token, url } = data;
 
       if (!token || !url) throw new Error('Token generation failed');
+
+      // 修正: 会議室に入る前に、バックエンドにライブセッションの開始を告げる
+      // これをしないと、WebSocket接続時に「セッションが見つからない」として 403 で拒絶されます。
+      try {
+        await meetingApi.startLiveSession(id || '', id || '');
+        console.log(`[MeetingSetup] Live session registered: ${id}`);
+      } catch (err: any) {
+        console.warn('[MeetingSetup] Failed to register live session:', err);
+        toast.error(`会議セッションの登録に失敗しました: ${err.message || 'Unknown Error'}`);
+        // 失敗してもLiveKit側は繋がる可能性があるため、続行は可能だが警告を出す
+      }
 
       navigate(`/active-meeting/${id}`, {
         state: {

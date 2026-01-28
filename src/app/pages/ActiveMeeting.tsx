@@ -87,20 +87,16 @@ function ActiveMeetingContent({
   initialSettings,
 
   wsSessionId,
-  wsToken
-  livekitToken
-
+  wsToken,
+  livekitToken,
 }: {
-  meetingId: string,
-  currentUserProp: any,
-  devices?: { audioInputId?: string; videoInputId?: string; audioOutputId?: string },
-  initialSettings?: { isMicOn: boolean, isVideoOn: boolean },
-
-  wsSessionId?: string,  // WebSocket session ID (optional)
-  wsToken?: string       // WebSocket auth token (optional)
-
-  livekitToken?: string
-
+  meetingId: string;
+  currentUserProp: any;
+  devices?: { audioInputId?: string; videoInputId?: string; audioOutputId?: string };
+  initialSettings?: { isMicOn: boolean; isVideoOn: boolean };
+  wsSessionId?: string;
+  wsToken?: string;
+  livekitToken?: string;
 }) {
   const navigate = useNavigate();
   const room = useRoomContext();
@@ -151,9 +147,11 @@ function ActiveMeetingContent({
   // const [participants, setParticipants] = useState<Participant[]>([]); // Removed in favor of useParticipants
   const [meetingTitle] = useState('日韓プロジェクト会議');
 
-  
+
   // --- WebSocket Chat State ---
   const ws = useRef<WebSocket | null>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatInputRef = useRef<HTMLInputElement>(null);
   const [wsConnected, setWsConnected] = useState(false);
   const BACKEND_WS_URL = import.meta.env.VITE_BACKEND_WS_URL || 'ws://localhost:8000';
 
@@ -191,9 +189,13 @@ function ActiveMeetingContent({
       return;
     }
 
+    // .env ファイルの VITE_BACKEND_WS_URL を直接使用する
     let wsUrl = `${BACKEND_WS_URL}/meeting/${targetSessionId}`;
-    if (wsToken) {
-      wsUrl += `?token=${wsToken}`;
+
+    // 修正: wsTokenがない場合、localStorageからログイン済みのトークンを取得して使用する
+    const effectiveToken = wsToken || localStorage.getItem('uri-tomo-token');
+    if (effectiveToken) {
+      wsUrl += `?token=${effectiveToken}`;
     }
 
     console.log('[ActiveMeeting] Connecting to WebSocket:', wsUrl);
@@ -1679,6 +1681,7 @@ export function ActiveMeeting() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useTranslation();
   const {
     livekitToken,
     livekitUrl,
@@ -1698,7 +1701,7 @@ export function ActiveMeeting() {
       toast.error(t('noConnectionInfo'));
       navigate(`/meeting-setup/${id}`);
     }
-  }, [livekitToken, livekitUrl, navigate, id]);
+  }, [livekitToken, livekitUrl, navigate, id, t]);
 
   console.log(`[ActiveMeeting] Connecting to LiveKit URL: ${livekitUrl} with Token length: ${livekitToken?.length}`);
 

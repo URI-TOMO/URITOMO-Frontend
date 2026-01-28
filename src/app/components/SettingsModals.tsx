@@ -20,20 +20,21 @@ interface ProfileSettingsModalProps {
   onNameChange: (name: string) => void;
   onAvatarChange: (avatar: string) => void;
   onAvatarTypeChange: (type: 'emoji' | 'image' | 'none') => void;
+  onAvatarImageUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onSave: () => void;
 }
 
 export function ProfileSettingsModal({
   isOpen,
   onClose,
-  userName,
   userEmail,
-  editedUserName,
   editedUserAvatar,
   editedAvatarType,
-  onNameChange,
   onAvatarChange,
   onAvatarTypeChange,
+  onAvatarImageUpload,
+  onNameChange,
+  editedUserName,
   onSave,
 }: ProfileSettingsModalProps) {
   const { t } = useTranslation();
@@ -114,7 +115,30 @@ export function ProfileSettingsModal({
                   </div>
                 </button>
 
-
+                <button
+                  onClick={() => {
+                    document.getElementById('avatar-upload')?.click();
+                  }}
+                  className={`w-full p-3 rounded-lg border-2 transition-all flex items-center gap-3 hover:border-yellow-400 hover:bg-yellow-50 ${editedAvatarType === 'image' ? 'border-yellow-400 bg-yellow-50' : 'border-gray-200'}`}
+                >
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-blue-600">
+                    <ImageIcon className="h-5 w-5" />
+                  </div>
+                  <div className="text-left flex-1">
+                    <p className="font-semibold text-gray-900">{t('uploadImage')}</p>
+                    <p className="text-xs text-gray-500">{t('useCustomPhoto')}</p>
+                  </div>
+                  <input
+                    id="avatar-upload"
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={(e) => {
+                      onAvatarTypeChange('image');
+                      onAvatarImageUpload?.(e);
+                    }}
+                  />
+                </button>
 
                 <button
                   onClick={() => {
