@@ -81,12 +81,15 @@ export function Home() {
         setRooms(mappedRooms);
 
         // 3. Update Contacts (Friends)
+        console.log('[Home] Raw friends data:', data.user_friends);
         const mappedContacts: Contact[] = data.user_friends.map(friend => ({
           id: friend.id,
           name: friend.friend_name,
           email: friend.email,
           status: 'online', // Default to online or handle based on real status if available
+          nickname: (friend as any).nickname
         }));
+        console.log('[Home] Mapped contacts:', mappedContacts);
         setContacts(mappedContacts);
 
         // 4. Fetch detailed profile (for avatar)
@@ -242,25 +245,6 @@ export function Home() {
       // Call backend API to add friend
       const friendData = await userApi.addFriend(newContactEmail);
 
-      // Create new contact from response
-      const newContact: Contact = {
-        id: Date.now().toString(), // Generate temporary ID
-        name: friendData.name,
-        email: friendData.email,
-        status: 'online',
-      };
-
-      // Update contacts list in state - this will trigger UI update
-      const updatedContacts = [...contacts, newContact];
-      setContacts(updatedContacts);
-
-      // Update localStorage
-      localStorage.setItem('uri-tomo-contacts', JSON.stringify(updatedContacts));
-
-      // Dispatch event for other components
-      window.dispatchEvent(new Event('contacts-updated'));
-
-      // Show success message
       toast.success(t('friendAdded'), {
         description: `${friendData.name} (${friendData.email})`,
         duration: 4000,
@@ -269,6 +253,23 @@ export function Home() {
       // Close modal and reset
       setShowAddContact(false);
       setNewContactEmail('');
+
+      // ★ Critical Fix: Refresh data from server to get the real Friend ID (UUID)
+      // Optimistic update with Date.now() causes 404s on subsequent edit/delete
+      setIsLoading(true);
+      const data: MainDataResponse = await userApi.getMainData();
+
+      const mappedContacts: Contact[] = data.user_friends.map(friend => ({
+        id: friend.id,
+        name: friend.friend_name,
+        email: friend.email,
+        status: 'online',
+        nickname: (friend as any).nickname // Ensure nickname is mapped if present
+      }));
+      setContacts(mappedContacts);
+      localStorage.setItem('uri-tomo-contacts', JSON.stringify(mappedContacts));
+      window.dispatchEvent(new Event('contacts-updated'));
+
 
     } catch (error: any) {
       console.error('Failed to add friend:', error);
@@ -281,6 +282,7 @@ export function Home() {
       }
     } finally {
       setIsCheckingEmail(false);
+      setIsLoading(false);
     }
   };
 
@@ -306,6 +308,7 @@ export function Home() {
         const updatedContacts = contacts.map(contact =>
           contact.id === selectedContact.id ? { ...contact, nickname: response.nickname } : contact
         );
+        console.log('[Home] Updated contacts after nickname change:', updatedContacts);
         setContacts(updatedContacts);
         localStorage.setItem('uri-tomo-contacts', JSON.stringify(updatedContacts));
 

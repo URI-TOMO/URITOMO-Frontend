@@ -41,14 +41,26 @@ export const userApi = {
      * @param newNickname - 변경할 새 닉네임
      */
     updateFriendNickname: async (friendId: string, newNickname: string): Promise<UpdateNicknameResponse> => {
-        // Note: The structure of response depends on apiClient implementation.
-        // Assuming apiClient.patch returns the data directly or we need to extract it.
-        // Based on other calls: return apiClient.get(...) -> returns Promise<MainDataResponse>
-        // Use generic if possible: apiClient.patch<T>(...)
-        return apiClient.patch<UpdateNicknameResponse>(
-            `/user/friend/${friendId}/nickname`,
-            { nickname: newNickname }
-        ) as unknown as Promise<UpdateNicknameResponse>;
+        const cleanId = friendId.trim();
+        console.log(`[API] Updating nickname for friendId: '${cleanId}' with nickname: '${newNickname}'`);
+
+        // New Spec: Request body must include friendId
+        // Handle response wrapper (e.g. { success: true, data: { ... } })
+        const response: any = await apiClient.patch(
+            `/user/friend/${cleanId}/nickname`,
+            {
+                friendId: cleanId,
+                nickname: newNickname
+            }
+        );
+
+        // If response has a 'data' property with the actual payload
+        if (response && response.data && response.data.nickname) {
+            return response.data as UpdateNicknameResponse;
+        }
+
+        // Fallback: assume flat response
+        return response as UpdateNicknameResponse;
     },
 
     /**
@@ -56,8 +68,10 @@ export const userApi = {
      * @param friendId - 삭제할 친구의 ID
      */
     deleteFriend: async (friendId: string): Promise<void> => {
+        const cleanId = friendId.trim();
+        console.log(`[API] Deleting friendId: '${cleanId}'`);
         await apiClient.delete(
-            `/user/friend/${friendId}`
+            `/user/friend/${cleanId}`
         );
     },
 };

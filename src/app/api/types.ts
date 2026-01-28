@@ -104,12 +104,14 @@ export interface AddFriendRequest {
 }
 
 export interface AddFriendResponse {
+  id: string;
   name: string;
   email: string;
   lang: string;
 }
 
 export interface UpdateNicknameRequest {
+  friendId: string;
   nickname: string;
 }
 
