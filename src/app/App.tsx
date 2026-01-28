@@ -13,6 +13,7 @@ import { ActiveMeeting } from "./pages/ActiveMeeting";
 import { Minutes } from "./pages/Minutes";
 import { DirectChat } from "./pages/DirectChat";
 import { Chat } from "./pages/Chat";
+import { WebSocketChatTest } from "./pages/WebSocketChatTest";
 import { Layout } from "./components/Layout";
 import { Toaster } from "./components/ui/sonner";
 
@@ -83,6 +84,11 @@ export default function App() {
           <Route
             path="/active-meeting/:id"
             element={<ActiveMeeting />}
+          />
+          {/* WebSocket Test - Full Screen for debugging */}
+          <Route
+            path="/ws-test"
+            element={<WebSocketChatTest />}
           />
         </Routes>
       )}

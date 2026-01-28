@@ -1,12 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import {
   Video, VideoOff, Mic, MicOff, PhoneOff, Users, Settings, Bot,
-  MessageSquare, Languages, Pin, ChevronRight, ChevronLeft,
+  MessageSquare, Languages, Pin, ChevronRight, ChevronLeft, FileText,
   MonitorUp, Paperclip, Smile, AlertTriangle, Clock, Send, Monitor, X,
-  User as UserIcon
+  User as UserIcon, Wifi, WifiOff
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { ProfileSettingsModal, SystemSettingsModal } from '../components/SettingsModals';
@@ -65,7 +65,19 @@ interface TermExplanation {
   timestamp: Date;
 }
 
-type SidebarTab = 'translation' | 'chat' | 'members';
+// Summary related types
+interface SummaryData {
+  summarization: {
+    main_point: string;
+    task: string;
+    decided: string;
+  };
+  meeting_date: string;
+  past_time: string;
+  meeting_member: number | string;
+}
+
+type SidebarTab = 'translation' | 'chat' | 'members' | 'summary';
 
 // --- Content Component ---
 function ActiveMeetingContent({
@@ -73,13 +85,22 @@ function ActiveMeetingContent({
   currentUserProp,
   devices: initialDevices,
   initialSettings,
+
+  wsSessionId,
+  wsToken
   livekitToken
+
 }: {
   meetingId: string,
   currentUserProp: any,
   devices?: { audioInputId?: string; videoInputId?: string; audioOutputId?: string },
   initialSettings?: { isMicOn: boolean, isVideoOn: boolean },
+
+  wsSessionId?: string,  // WebSocket session ID (optional)
+  wsToken?: string       // WebSocket auth token (optional)
+
   livekitToken?: string
+
 }) {
   const navigate = useNavigate();
   const room = useRoomContext();
@@ -130,10 +151,11 @@ function ActiveMeetingContent({
   // const [participants, setParticipants] = useState<Participant[]>([]); // Removed in favor of useParticipants
   const [meetingTitle] = useState('日韓プロジェクト会議');
 
-  // Refs
-  const chatInputRef = useRef<HTMLInputElement>(null);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // --- WebSocket Chat State ---
+  const ws = useRef<WebSocket | null>(null);
+  const [wsConnected, setWsConnected] = useState(false);
+  const BACKEND_WS_URL = import.meta.env.VITE_BACKEND_WS_URL || 'ws://localhost:8000';
 
 
   // Profile Settings State
@@ -150,6 +172,132 @@ function ActiveMeetingContent({
   // 会議開始時間を記録
   const [startTime] = useState(new Date());
 
+  // --- WebSocket Connection Logic ---
+  useEffect(() => {
+    // 修正: wsSessionIdがなくても、ルームID (meetingId) を使って接続を試みる
+    // さらに、meetingIdがLiveKitの内部ID(数値)になっている可能性があるため、
+    // URLから ls_ で始まるIDがあればそれを優先する
+    let targetSessionId = wsSessionId || meetingId;
+
+    // URLからセッションIDを抽出 (例: /active-meeting/ls_xxxx)
+    const urlMatch = window.location.pathname.match(/(ls_[a-zA-Z0-9]+)/);
+    if (urlMatch && urlMatch[1]) {
+      console.log(`[ActiveMeeting] Found session ID in URL: ${urlMatch[1]} (overriding ${targetSessionId})`);
+      targetSessionId = urlMatch[1];
+    }
+
+    if (!targetSessionId) {
+      console.log('[ActiveMeeting] No WebSocket session ID or Room ID, using local-only mode');
+      return;
+    }
+
+    let wsUrl = `${BACKEND_WS_URL}/meeting/${targetSessionId}`;
+    if (wsToken) {
+      wsUrl += `?token=${wsToken}`;
+    }
+
+    console.log('[ActiveMeeting] Connecting to WebSocket:', wsUrl);
+
+    try {
+      ws.current = new WebSocket(wsUrl);
+
+      ws.current.onopen = () => {
+        console.log('✅ ActiveMeeting WebSocket Connected');
+        setWsConnected(true);
+        toast.success('チャットサーバーに接続しました');
+      };
+
+      ws.current.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          console.log('📩 WS Message:', msg);
+
+          if (msg.type === 'chat' && msg.data) {
+            const newMsg: ChatMessage = {
+              id: msg.data.id,
+              sender: msg.data.display_name || 'Unknown',
+              message: msg.data.text,
+              timestamp: new Date(msg.data.created_at)
+            };
+            setChatMessages(prev => {
+              // Avoid duplicates
+              if (prev.some(m => m.id === newMsg.id)) {
+                return prev;
+              }
+              return [...prev, newMsg];
+            });
+          } else if (msg.type === 'translation' && msg.data) {
+            // 翻訳メッセージの受信
+            const data = msg.data;
+            const newLog: TranslationLog = {
+              id: Date.now().toString(), // 本当はUUIDなどが良いが簡易的に
+              speaker: 'Unknown', // backendからのデータにspeakerが含まれていれば使う
+              originalText: data.original_text,
+              translatedText: data.translated_text,
+              originalLang: data.source_lang as 'ja' | 'ko',
+              timestamp: new Date()
+            };
+            setTranslationLogs(prev => [newLog, ...prev]); // 新しいものを上に
+
+            // チャット欄にも翻訳を表示したい場合（オプション）
+            // setChatMessages(...) 
+
+          } else if (msg.type === 'explanation' && msg.data) {
+            // 用語解説の受信
+            const payload = msg.data;
+            const content = payload.data || {};
+            const newExpl: TermExplanation = {
+              id: payload.id || Date.now().toString(),
+              term: content.term || '解説',
+              explanation: content.explanation || content.text || '詳細情報なし',
+              detectedFrom: content.detectedFrom || 'AI',
+              timestamp: new Date(payload.created_at || Date.now())
+            };
+            setTermExplanations(prev => [newExpl, ...prev]);
+            toast.success('新しい用語解説が追加されました');
+
+          } else if (msg.type === 'session_connected') {
+            console.log('🎉 Session connected:', msg.data);
+          } else if (msg.type === 'error') {
+            console.error('❌ WS Error:', msg.message);
+            toast.error(`チャットエラー: ${msg.message}`);
+          }
+        } catch (e) {
+          console.error('Failed to parse WS message:', e);
+        }
+      };
+
+      ws.current.onclose = (event) => {
+        console.log('❌ WebSocket Closed:', event.code, event.reason);
+        setWsConnected(false);
+        if (event.code !== 1000) {
+          toast.error('チャットサーバーから切断されました');
+        }
+      };
+
+      ws.current.onerror = (err) => {
+        console.error('WebSocket error:', err);
+        setWsConnected(false);
+      };
+
+      // Ping to keep connection alive
+      const pingInterval = setInterval(() => {
+        if (ws.current?.readyState === WebSocket.OPEN) {
+          ws.current.send(JSON.stringify({ type: 'ping' }));
+        }
+      }, 30000);
+
+      return () => {
+        clearInterval(pingInterval);
+        if (ws.current) {
+          ws.current.close();
+        }
+      };
+    } catch (e) {
+      console.error('Failed to create WebSocket:', e);
+    }
+  }, [wsSessionId, wsToken, BACKEND_WS_URL, meetingId]);
+
   // --- Logic 1: Screen Share IPC Listener ---
   useEffect(() => {
     if ((window as any).ipcRenderer) {
@@ -160,51 +308,54 @@ function ActiveMeetingContent({
     }
   }, []);
 
-  // --- Logic 1.5: Live Session Start Trigger ---
-  useEffect(() => {
-    if (room && room.state === 'connected' && meetingId) {
-      // room.sid might be missing in type definitions but exists at runtime
-      const sessionId = (room as any).sid;
-
-      if (!sessionId) {
-        console.warn('⚠️ Room connected but Session ID (sid) is missing. Waiting...');
-        return;
-      }
-
-      console.log(`📡 Connecting to Live Session backend. Room: ${meetingId}, Session (SID): ${sessionId}`);
-
-      meetingApi.startLiveSession(meetingId, sessionId, livekitToken)
-        .then(response => {
-          console.log('✅ Live Session started:', response);
-          toast.success(t('liveSessionConnected'));
-        })
-        .catch(error => {
-          console.error('❌ Failed to start live session:', error);
-          toast.error(t('liveSessionFailed'));
-        });
-    }
-  }, [room, room?.state, meetingId]);
-
-  // --- Logic 1.6: Track Subscription Event Listener ---
+  // --- Logic 1.5: LiveKit Data Channel Listener (Direct Agent Communication) ---
   useEffect(() => {
     if (!room) return;
 
-    const handleTrackSubscribed = (track: any, publication: any, participant: any) => {
-      console.log('[LK] TrackSubscribed:', track.kind, participant.identity, publication.trackSid);
+    const handleDataReceived = (payload: Uint8Array, participant: any, kind: any) => {
+      try {
+        const textDecoder = new TextDecoder();
+        const strData = textDecoder.decode(payload);
+        const msg = JSON.parse(strData);
 
-      // 오디오 트랙을 DOM에 자동 attach
-      if (track.kind === Track.Kind.Audio) {
-        console.log('[LK] Attaching audio track from participant:', participant.identity);
-        const audioElement = track.attach();
-        audioElement.setAttribute('data-participant-identity', participant.identity);
-        document.body.appendChild(audioElement);
+        console.log('📡 LiveKit Data Received:', msg);
+
+        if (msg.type === 'translation' && msg.data) {
+          const data = msg.data;
+          const newLog: TranslationLog = {
+            id: Date.now().toString(),
+            speaker: participant?.identity || 'Unknown',
+            originalText: data.original_text,
+            translatedText: data.translated_text,
+            originalLang: data.source_lang as 'ja' | 'ko',
+            timestamp: new Date()
+          };
+          setTranslationLogs(prev => [newLog, ...prev]);
+          toast.success('LiveKit経由で翻訳を受信しました');
+
+        } else if (msg.type === 'chat' && msg.text) {
+          // チャットもバックアップとして受信可能にする
+          const newMsg: ChatMessage = {
+            id: Date.now().toString(),
+            sender: participant?.identity || 'Agent',
+            message: msg.text,
+            timestamp: new Date(),
+            isAI: true
+          };
+          setChatMessages(prev => [...prev, newMsg]);
+        }
+
+      } catch (e) {
+        console.warn('Failed to parse LiveKit data:', e);
       }
     };
 
-    room.on(RoomEvent.TrackSubscribed, handleTrackSubscribed);
+    // イベント定数を文字列で指定するか、import { RoomEvent } from 'livekit-client' が必要だが
+    // ここでは文字列 "dataReceived" で代用可能（LiveKit JS SDKの仕様による）
+    room.on('dataReceived', handleDataReceived);
 
     return () => {
-      room.off(RoomEvent.TrackSubscribed, handleTrackSubscribed);
+      room.off('dataReceived', handleDataReceived);
     };
   }, [room]);
 
@@ -242,6 +393,70 @@ function ActiveMeetingContent({
     navigator.mediaDevices.addEventListener('devicechange', syncDevices);
     return () => navigator.mediaDevices.removeEventListener('devicechange', syncDevices);
   }, [showSettings, room]);
+
+  const [summaryData, setSummaryData] = useState<SummaryData | null>(null);
+  const [isSummaryLoading, setIsSummaryLoading] = useState(false);
+
+  // 要約取得APIの呼び出し
+  const fetchSummary = async () => {
+    // 修正: チャットの保存先IDと合わせる
+    const targetSessionId = wsSessionId || meetingId;
+
+    if (!targetSessionId || !wsToken) {
+      toast.error('認証情報が不足しています');
+      return;
+    }
+
+    try {
+      setIsSummaryLoading(true);
+      // 環境変数がない場合は、現在のブラウザのホスト名を使ってバックエンドのURLを推測する
+      let backendUrl = 'http://localhost:8000';
+      if (import.meta.env.VITE_BACKEND_WS_URL) {
+        // ws://.../api/v1 のようなパスが含まれている場合に対応するため、URLオブジェクトでパース
+        const rawUrl = import.meta.env.VITE_BACKEND_WS_URL.replace('ws://', 'http://').replace('wss://', 'https://');
+        try {
+          const urlObj = new URL(rawUrl);
+          backendUrl = urlObj.origin + urlObj.pathname.replace(/\/$/, ''); // 末尾スラッシュ削除
+        } catch (e) {
+          backendUrl = rawUrl.replace(/\/$/, '');
+        }
+      } else {
+        const currentHost = window.location.hostname;
+        backendUrl = `http://${currentHost}:8000`;
+      }
+
+      const requestUrl = `${backendUrl}/summarization/${targetSessionId}`; // バックエンドのルート設定に合わせる
+      console.log('🚀 Fetching summary in ActiveMeeting from:', requestUrl);
+
+      const response = await fetch(requestUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${wsToken}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setSummaryData(data.summary);
+      toast.success('要約を生成しました');
+
+      // 翻訳ログも更新（もし含まれていれば）
+      if (data.translation_log && Array.isArray(data.translation_log)) {
+        // 必要に応じて既存のtranslationLogsとマージしたり置き換えたりする処理
+        // setTranslationLogs(...)
+      }
+
+    } catch (error) {
+      console.error('Failed to fetch summary:', error);
+      toast.error('要約の生成に失敗しました');
+    } finally {
+      setIsSummaryLoading(false);
+    }
+  };
 
   // --- Handlers ---
   const handleDeviceChange = async (kind: MediaDeviceKind, id: string) => {
@@ -316,10 +531,26 @@ function ActiveMeetingContent({
   };
 
   const handleSendChat = () => {
-    if (chatInput.trim()) {
-      setChatMessages([...chatMessages, { id: Date.now().toString(), sender: currentUser.name, message: chatInput, timestamp: new Date() }]);
-      setChatInput('');
+    if (!chatInput.trim()) return;
+
+    if (ws.current?.readyState === WebSocket.OPEN) {
+      // WebSocket接続がある場合はサーバーに送信
+      ws.current.send(JSON.stringify({
+        type: 'chat',
+        text: chatInput,
+        lang: 'ja'
+      }));
+      // サーバーからブロードキャストされたメッセージで表示されるため、ローカルには追加しない
+    } else {
+      // WebSocket接続がない場合はローカルにのみ追加
+      setChatMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        sender: currentUser.name,
+        message: chatInput,
+        timestamp: new Date()
+      }]);
     }
+    setChatInput('');
   };
 
   const handleFileAttach = () => {
@@ -363,7 +594,7 @@ function ActiveMeetingContent({
 
     // 会議の包括的なレコードを作成
     const meetingRecord = {
-      id: Date.now().toString(),
+      id: wsSessionId || meetingId || Date.now().toString(),
       title: meetingTitle,
       startTime: startTime.toISOString(),
       endTime: endTime.toISOString(),
@@ -421,7 +652,13 @@ function ActiveMeetingContent({
     const updatedMeetings = [...savedMeetings, meetingRecord];
     localStorage.setItem('meetings', JSON.stringify(updatedMeetings));
     // 実際の議事録保存処理などがここに入ります
-    navigate(`/minutes/${meetingRecord.id}`);
+
+    navigate(`/minutes/${meetingRecord.id}`, {
+      state: {
+        token: wsToken,
+        meetingRecord: meetingRecord // 念のためローカルで作ったデータも渡しておく
+      }
+    });
   };
 
   // --- Initial Data ---
@@ -671,11 +908,111 @@ function ActiveMeetingContent({
                         <span>{t('members')}</span>
                       </div>
                     </button>
+                    <button
+                      onClick={() => setActiveTab('summary')}
+                      className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors ${activeTab === 'summary'
+                        ? 'bg-white text-yellow-600 border-b-2 border-yellow-400'
+                        : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        <span>要約</span>
+                      </div>
+                    </button>
                   </div>
 
                   {/* Tab Content */}
                   <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-                    {/* Translation Tab */}
+                    {/* Summary Tab */}
+                    {activeTab === 'summary' && (
+                      <div className="h-full overflow-y-auto p-4">
+                        <div className="mb-6">
+                          <h3 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
+                            <Bot className="h-5 w-5 text-yellow-600" />
+                            AI 会議要約
+                          </h3>
+                          <p className="text-sm text-gray-600 mb-4">
+                            Uri-Tomo AIが会議の内容をリアルタイムで分析・要約します。
+                          </p>
+
+                          {!summaryData ? (
+                            <div className="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                              <FileText className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                              <p className="text-gray-500 text-sm mb-4">まだ要約が生成されていません</p>
+                              <Button
+                                onClick={fetchSummary}
+                                disabled={isSummaryLoading}
+                                className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-bold"
+                              >
+                                {isSummaryLoading ? (
+                                  <><span className="loading loading-spinner loading-xs mr-2"></span>生成中...</>
+                                ) : (
+                                  <><Bot className="h-4 w-4 mr-2" />要約を生成する</>
+                                )}
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                              {/* Metadata Card */}
+                              <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                  <div>
+                                    <p className="text-gray-500 text-xs">会議日</p>
+                                    <p className="font-semibold text-gray-900">{summaryData.meeting_date}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-gray-500 text-xs">所要時間</p>
+                                    <p className="font-semibold text-gray-900">{summaryData.past_time}</p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Main Points */}
+                              <div className="bg-gradient-to-br from-yellow-50 to-amber-50 p-5 rounded-xl border border-yellow-200 shadow-sm">
+                                <h4 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+                                  <span className="text-xl">💡</span> 主要ポイント
+                                </h4>
+                                <div className="prose prose-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                                  {summaryData.summarization.main_point}
+                                </div>
+                              </div>
+
+                              {/* Decisions */}
+                              <div className="bg-white p-5 rounded-xl border-l-4 border-green-500 shadow-sm">
+                                <h4 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+                                  <span className="text-xl">✅</span> 決定事項
+                                </h4>
+                                <div className="prose prose-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                                  {summaryData.summarization.decided}
+                                </div>
+                              </div>
+
+                              {/* Tasks */}
+                              <div className="bg-white p-5 rounded-xl border-l-4 border-blue-500 shadow-sm">
+                                <h4 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+                                  <span className="text-xl">📋</span> ネクストアクション
+                                </h4>
+                                <div className="prose prose-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                                  {summaryData.summarization.task}
+                                </div>
+                              </div>
+
+                              <div className="flex justify-center pt-4">
+                                <Button
+                                  onClick={fetchSummary}
+                                  variant="outline"
+                                  disabled={isSummaryLoading}
+                                  className="text-gray-500 hover:text-gray-700"
+                                >
+                                  {isSummaryLoading ? '更新中...' : '情報を更新する'}
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                     {activeTab === 'translation' && (
                       <div className="h-full flex flex-col bg-gradient-to-b from-yellow-50 to-white">
                         {/* Scrollable Translation Log */}
@@ -773,6 +1110,25 @@ function ActiveMeetingContent({
                     {/* Chat Tab */}
                     {activeTab === 'chat' && (
                       <div className="h-full flex flex-col">
+                        {/* WebSocket Connection Status */}
+                        {wsSessionId && (
+                          <div className={`px-4 py-2 flex items-center gap-2 text-xs border-b ${wsConnected
+                            ? 'bg-green-50 text-green-700 border-green-200'
+                            : 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                            }`}>
+                            {wsConnected ? (
+                              <>
+                                <Wifi className="h-3 w-3" />
+                                <span>リアルタイム同期中</span>
+                              </>
+                            ) : (
+                              <>
+                                <WifiOff className="h-3 w-3" />
+                                <span>接続中...</span>
+                              </>
+                            )}
+                          </div>
+                        )}
                         <div className="flex-1 overflow-y-auto p-4 space-y-3">
                           {chatMessages.length === 0 ? (
                             <div className="text-center py-8">
@@ -1323,8 +1679,19 @@ export function ActiveMeeting() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { t } = useTranslation();
-  const { livekitToken, livekitUrl, participantName, initialMicOn, initialVideoOn, audioDeviceId, videoDeviceId, audioOutputDeviceId } = location.state || {};
+  const {
+    livekitToken,
+    livekitUrl,
+    participantName,
+    initialMicOn,
+    initialVideoOn,
+    audioDeviceId,
+    videoDeviceId,
+    audioOutputDeviceId,
+    // WebSocket params (optional)
+    wsSessionId,
+    wsToken
+  } = location.state || {};
 
   useEffect(() => {
     if (!livekitToken || !livekitUrl) {
@@ -1357,6 +1724,8 @@ export function ActiveMeeting() {
         currentUserProp={{ name: participantName || 'Me', language: 'ja' }}
         devices={{ audioInputId: audioDeviceId, videoInputId: videoDeviceId, audioOutputId: audioOutputDeviceId }}
         initialSettings={{ isMicOn: initialMicOn, isVideoOn: initialVideoOn }}
+        wsSessionId={wsSessionId}
+        wsToken={wsToken}
         livekitToken={livekitToken}
       />
       <RoomAudioRenderer />

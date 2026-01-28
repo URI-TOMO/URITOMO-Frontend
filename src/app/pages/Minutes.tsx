@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { motion } from 'motion/react';
+import { ArrowLeft, Download, Users, Clock, Calendar, Languages, Bot, FileText, Sparkles, RefreshCw } from 'lucide-react';
+
 import { motion } from 'framer-motion';
-import { ArrowLeft, Download, Users, Clock, Calendar, Languages, Bot, FileText, Sparkles } from 'lucide-react';
+
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
@@ -44,7 +47,10 @@ interface MeetingMinutes {
 export function Minutes() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [minutes, setMinutes] = useState<MeetingMinutes | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   // Profile and system settings states
   const [showProfileSettings, setShowProfileSettings] = useState(false);
@@ -127,44 +133,118 @@ export function Minutes() {
     }
   }, []);
 
-  useEffect(() => {
-    // Load meeting data from localStorage
-    const savedMeetings = JSON.parse(localStorage.getItem('meetings') || '[]');
-    const meeting = savedMeetings.find((m: any) => m.id === id);
+  const fetchMeetingData = async () => {
+    // 1. まずローカルデータまたはstateから基本情報を取得
+    let baseData: any = null;
 
-    if (meeting) {
-      // Use summary from meeting or empty
-      const summary = meeting.summary || {
-        keyPoints: [],
-        actionItems: [],
-        decisions: [],
-      };
+    // stateからデータを取得（遷移直後）
+    if (location.state?.meetingRecord) {
+      baseData = location.state.meetingRecord;
+    } else {
+      // localStorageからデータを取得（リロード時など）
+      const savedMeetings = JSON.parse(localStorage.getItem('meetings') || '[]');
+      baseData = savedMeetings.find((m: any) => m.id === id);
+    }
 
-      // Ensure participants array exists and is properly formatted
-      const participants = (meeting.participants || []).map((p: any) => ({
+    if (!baseData) {
+      setApiError('会議データが見つかりません');
+      return;
+    }
+
+    // 基本データをセット（APIロードまでの仮表示）
+    // 日付文字列をDateオブジェクトに変換
+    const formattedBaseData = {
+      ...baseData,
+      startTime: new Date(baseData.startTime),
+      endTime: new Date(baseData.endTime),
+      translationLog: (baseData.translationLog || []).map((t: any) => ({ ...t, timestamp: new Date(t.timestamp) })),
+      participants: (baseData.participants || []).map((p: any) => ({
         id: p.id || String(Math.random()),
         name: p.name || 'Unknown',
-        language: p.language,
-      }));
+        language: p.language
+      }))
+    };
 
-      // Ensure translationLog array exists and timestamps are Date objects
-      const translationLog = (meeting.translationLog || []).map((t: any) => ({
-        ...t,
-        timestamp: new Date(t.timestamp),
-      }));
+    setMinutes(formattedBaseData);
 
-      setMinutes({
-        id: meeting.id,
-        title: meeting.title,
-        startTime: new Date(meeting.startTime),
-        endTime: new Date(meeting.endTime),
-        participants,
-        translationLog,
-        chatMessages: meeting.chatMessages || [],
-        summary,
-      });
+    // 2. トークンがある場合はAPIから最新の要約を取得
+    const token = location.state?.token;
+    if (token) {
+      try {
+        setIsLoading(true);
+        // 環境変数がない場合は、現在のブラウザのホスト名を使ってバックエンドのURLを推測する
+        let backendUrl = 'http://localhost:8000';
+        if (import.meta.env.VITE_BACKEND_WS_URL) {
+          // ws://.../api/v1 のようなパスが含まれている場合に対応するため、URLオブジェクトでパース
+          const rawUrl = import.meta.env.VITE_BACKEND_WS_URL.replace('ws://', 'http://').replace('wss://', 'https://');
+          try {
+            const urlObj = new URL(rawUrl);
+            backendUrl = urlObj.origin + urlObj.pathname.replace(/\/$/, ''); // 末尾スラッシュ削除
+          } catch (e) {
+            backendUrl = rawUrl.replace(/\/$/, '');
+          }
+        } else {
+          const currentHost = window.location.hostname;
+          backendUrl = `http://${currentHost}:8000`;
+        }
+
+        // バックエンドの設定(config.py)でapi_prefixが空の場合は /api/v1 は不要
+        // 一旦 /api/v1 なしで試行する
+        const requestUrl = `${backendUrl}/summarization/${id}`;
+        console.log('🚀 Fetching summary from:', requestUrl);
+        console.log('🔑 Token (first 10 chars):', token.substring(0, 10) + '...');
+
+        const response = await fetch(requestUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        console.log('📡 Response Status:', response.status, response.statusText);
+
+        if (response.ok) {
+          const apiData = await response.json();
+          console.log('✅ API Summary Data:', apiData);
+
+          // APIデータで要約部分を更新
+          const summaryData = apiData.summary?.summarization;
+          if (summaryData) {
+            setMinutes(prev => {
+              if (!prev) return null;
+              return {
+                ...prev,
+                summary: {
+                  keyPoints: summaryData.main_point ? summaryData.main_point.split('\n').filter((s: string) => s.trim()) : [],
+                  actionItems: summaryData.task ? summaryData.task.split('\n').filter((s: string) => s.trim()) : [],
+                  decisions: summaryData.decided ? summaryData.decided.split('\n').filter((s: string) => s.trim()) : [],
+                },
+                // 必要であれば翻訳ログなども更新
+                // translationLog: apiData.translation_log ...
+              };
+            });
+            toast.success('最新の要約を取得しました');
+          }
+        } else {
+          const errorText = await response.text();
+          console.error('❌ API Error Response:', errorText);
+          throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
+        }
+      } catch (error) {
+        console.error('💥 Failed to fetch summary from API:', error);
+        toast.error(`バックエンドからの要約取得に失敗しました: ${error instanceof Error ? error.message : String(error)}`);
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      console.warn('⚠️ No token found in location.state');
     }
-  }, [id]);
+  };
+
+  useEffect(() => {
+    fetchMeetingData();
+  }, [id, location.state]);
 
   const handleExport = () => {
     if (!minutes) return;
@@ -303,7 +383,18 @@ ${t.translatedLang}: ${t.translatedText}
                 {t('aiSummary')}
                 <Sparkles className="h-5 w-5 text-yellow-500 animate-pulse" />
               </h2>
-              <p className="text-sm text-gray-600">{t('aiSummaryDesc')}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm text-gray-600">AIが自動生成した会議の要約</p>
+                {isLoading && <span className="loading loading-spinner loading-xs text-yellow-600"></span>}
+                {!isLoading && location.state?.token && (
+                  <button
+                    onClick={fetchMeetingData}
+                    className="text-xs text-yellow-700 underline hover:text-yellow-900 flex items-center gap-1"
+                  >
+                    <RefreshCw className="h-3 w-3" /> 再生成
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { motion } from 'motion/react';
 import { motion } from 'framer-motion';
 import {
   Video,
@@ -54,6 +55,11 @@ export function MeetingSetup() {
   const [editedUserName, setEditedUserName] = useState('');
   const [editedUserAvatar, setEditedUserAvatar] = useState('');
   const [editedAvatarType, setEditedAvatarType] = useState<'emoji' | 'image' | 'none'>('none');
+
+  // WebSocket Debug (development only)
+  const [showWsDebug, setShowWsDebug] = useState(false);
+  const [wsSessionId, setWsSessionId] = useState('');
+  const [wsToken, setWsToken] = useState('');
 
   // Listen for sidebar button clicks
   useEffect(() => {
@@ -121,6 +127,8 @@ export function MeetingSetup() {
     const getDevices = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+
+        // デバイス一覧を取得
         const devices = await navigator.mediaDevices.enumerateDevices();
 
         const micList = devices.filter(d => d.kind === 'audioinput');
@@ -207,7 +215,10 @@ export function MeetingSetup() {
           initialVideoOn: isVideoOn,
           audioDeviceId: selectedMicId,
           videoDeviceId: selectedCameraId,
-          audioOutputDeviceId: selectedSpeakerId
+          audioOutputDeviceId: selectedSpeakerId,
+          // WebSocket params (optional, for debugging)
+          wsSessionId: wsSessionId || undefined,
+          wsToken: wsToken || undefined
         }
       });
 
@@ -256,7 +267,7 @@ export function MeetingSetup() {
                   {isVideoOn ? (
                     <video
                       ref={videoRef}
-                      className="w-full h-full object-cover transform -scale-x-100"
+                      className="w-full h-full object-cover transform -scale-x-100" // 鏡像反転
                       autoPlay
                       muted
                       playsInline
@@ -469,6 +480,56 @@ export function MeetingSetup() {
               <p className="text-sm text-blue-800 text-center">
                 💡 {t('changeSettingsAnytime')}
               </p>
+            </div>
+
+            {/* WebSocket Debug Section (Development Only) */}
+            <div className="mt-4">
+              <button
+                onClick={() => setShowWsDebug(!showWsDebug)}
+                className="text-xs text-gray-500 hover:text-gray-700 underline"
+              >
+                {showWsDebug ? '▼ WebSocket Debug を閉じる' : '▶ WebSocket Debug (開発用)'}
+              </button>
+
+              {showWsDebug && (
+                <div className="mt-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <p className="text-xs text-gray-600 mb-3">
+                    リアルタイムチャットをテストするには、バックエンドの <code>/debug/all-in-one</code> で
+                    セッションを作成し、以下に入力してください。
+                  </p>
+                  <div className="space-y-2">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        WebSocket Session ID
+                      </label>
+                      <input
+                        type="text"
+                        value={wsSessionId}
+                        onChange={(e) => setWsSessionId(e.target.value)}
+                        placeholder="ls_xxxxxx"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        WebSocket Token
+                      </label>
+                      <input
+                        type="text"
+                        value={wsToken}
+                        onChange={(e) => setWsToken(e.target.value)}
+                        placeholder="eyJhbGciOiJIUzI..."
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      />
+                    </div>
+                    {wsSessionId && (
+                      <p className="text-xs text-green-600">
+                        ✓ WebSocket接続が有効になります
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

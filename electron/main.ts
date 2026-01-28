@@ -1,4 +1,7 @@
-import { app, BrowserWindow, ipcMain, desktopCapturer, session } from 'electron'
+import { createRequire } from 'node:module'
+const require = createRequire(import.meta.url)
+const { app, BrowserWindow, ipcMain, desktopCapturer, session } = require('electron')
+import type { BrowserWindow as BrowserWindowType } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 
@@ -17,7 +20,7 @@ export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
 
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
 
-let win: BrowserWindow | null
+let win: BrowserWindowType | null
 
 // ★重要: コールバックを保存する変数は関数の外に置く
 let screenShareCallback: ((result: any) => void) | null = null;
@@ -32,6 +35,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.mjs'), // ビルド後のパスに注意
       contextIsolation: true, // trueでないとpreloadが動きません
       nodeIntegration: false,
+      webSecurity: false, // 開発中は無効化してCORS等の問題を回避
     },
   })
 
@@ -41,6 +45,14 @@ function createWindow() {
 
     desktopCapturer.getSources({ types: ['screen', 'window'] }).then((sources) => {
       console.log('[Main] Found sources:', sources.length);
+
+
+      // ★修正: ここで不要なウィンドウをフィルタリング
+      const cleanSources = sources.filter(source =>
+        source.name !== 'PDRSTYLEAGENT' && // 特定のアプリを除外
+        source.name !== 'Overlay' &&       // NVIDIAなどのオーバーレイも除外すると良い
+        source.id !== 'screen:0:0'         // 必要であればダミー画面も除外
+      );
 
       // コールバックをグローバル変数に保存（Reactからの選択待ち）
       screenShareCallback = callback;
@@ -63,6 +75,8 @@ function createWindow() {
 
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL)
+    // 開発モード時は自動で開発者ツールを開く
+    win.webContents.openDevTools()
   } else {
     win.loadFile(path.join(RENDERER_DIST, 'index.html'))
   }
