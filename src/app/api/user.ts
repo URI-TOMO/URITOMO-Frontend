@@ -1,5 +1,14 @@
 import apiClient from './client';
-import { MainDataResponse, AddFriendRequest, AddFriendResponse, UserProfile } from './types';
+import {
+    MainDataResponse,
+    AddFriendRequest,
+    AddFriendResponse,
+    UserProfile,
+    SendFriendRequestPayload,
+    SendFriendRequestResponse,
+    FriendRequest,
+    AcceptFriendRequestResponse
+} from './types';
 
 export const userApi = {
     /**
@@ -35,5 +44,36 @@ export const userApi = {
         return apiClient.patch('/user/profile', data);
     },
 
+    /**
+     * 친구 요청을 보냅니다.
+     * @param email 요청을 보낼 사용자의 이메일
+     */
+    sendFriendRequest: async (email: string): Promise<SendFriendRequestResponse> => {
+        const payload: SendFriendRequestPayload = { email };
+        return apiClient.post('/user/friend/request', payload);
+    },
+
+    /**
+     * 받은 친구 요청 목록을 조회합니다.
+     */
+    getFriendRequests: async (): Promise<FriendRequest[]> => {
+        return apiClient.get('/user/friend/requests/received');
+    },
+
+    /**
+     * 친구 요청을 수락합니다.
+     * @param requestId 수락할 요청의 ID
+     */
+    acceptFriendRequest: async (requestId: string): Promise<AcceptFriendRequestResponse> => {
+        return apiClient.post(`/user/friend/request/${requestId}/accept`, {});
+    },
+
+    /**
+     * 친구 요청을 거절합니다.
+     * @param requestId 거절할 요청의 ID
+     */
+    rejectFriendRequest: async (requestId: string): Promise<{ message: string }> => {
+        return apiClient.post(`/user/friend/request/${requestId}/reject`, {});
+    },
 
 };

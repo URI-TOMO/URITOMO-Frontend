@@ -105,3 +105,33 @@ export interface AddFriendResponse {
   email: string;
   lang: string;
 }
+
+// Friend Request System Types
+export interface FriendRequestSender {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+}
+
+export interface FriendRequest {
+  request_id: string;
+  sender: FriendRequestSender;
+  status: 'pending' | 'accepted' | 'rejected';
+  created_at: string;
+}
+
+export interface SendFriendRequestPayload {
+  email: string;
+}
+
+export interface SendFriendRequestResponse {
+  message: string;
+  request_id: string;
+  status: string;
+}
+
+export interface AcceptFriendRequestResponse {
+  message: string;
+  friend: Friend;
+}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, UserPlus, Edit3, Trash2, MessageCircle, MoreVertical, User, Bot, Settings, Plus, LogOut, Mic, Video, Monitor, Languages, Image as ImageIcon, ChevronRight } from 'lucide-react';
+import { Users, UserPlus, Edit3, Trash2, MessageCircle, MoreVertical, User, Bot, Settings, Plus, LogOut, Mic, Video, Monitor, Languages, Image as ImageIcon, ChevronRight, Mail, X, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '../components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
 import { ProfileSettingsModal, SystemSettingsModal } from '../components/SettingsModals';
 import { userApi } from '../api/user';
-import { MainDataResponse } from '../api/types';
+import { MainDataResponse, FriendRequest } from '../api/types';
 import { useTranslation } from '../hooks/useTranslation';
 
 interface Room {
@@ -56,6 +56,11 @@ export function Home() {
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
   const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Friend Request System States
+  const [pendingRequests, setPendingRequests] = useState<FriendRequest[]>([]);
+  const [showRequestsPopover, setShowRequestsPopover] = useState(false);
+  const [processingRequestId, setProcessingRequestId] = useState<string | null>(null);
 
 
 
@@ -154,6 +159,20 @@ export function Home() {
 
   }, []);
 
+  // Fetch friend requests on mount
+  useEffect(() => {
+    const fetchFriendRequests = async () => {
+      try {
+        const requests = await userApi.getFriendRequests();
+        setPendingRequests(requests);
+      } catch (error) {
+        console.error('Failed to fetch friend requests:', error);
+      }
+    };
+
+    fetchFriendRequests();
+  }, []);
+
   // Listen for profile/settings events from Layout and profile updates
   useEffect(() => {
     const handleOpenProfile = () => {
@@ -239,30 +258,12 @@ export function Home() {
     setIsCheckingEmail(true);
 
     try {
-      // Call backend API to add friend
-      const friendData = await userApi.addFriend(newContactEmail);
-
-      // Create new contact from response
-      const newContact: Contact = {
-        id: Date.now().toString(), // Generate temporary ID
-        name: friendData.name,
-        email: friendData.email,
-        status: 'online',
-      };
-
-      // Update contacts list in state - this will trigger UI update
-      const updatedContacts = [...contacts, newContact];
-      setContacts(updatedContacts);
-
-      // Update localStorage
-      localStorage.setItem('uri-tomo-contacts', JSON.stringify(updatedContacts));
-
-      // Dispatch event for other components
-      window.dispatchEvent(new Event('contacts-updated'));
+      // Send friend request instead of directly adding
+      const response = await userApi.sendFriendRequest(newContactEmail);
 
       // Show success message
-      toast.success(t('friendAdded'), {
-        description: `${friendData.name} (${friendData.email})`,
+      toast.success(t('friendRequestSent'), {
+        description: t('friendRequestSentDesc'),
         duration: 4000,
       });
 
@@ -271,11 +272,13 @@ export function Home() {
       setNewContactEmail('');
 
     } catch (error: any) {
-      console.error('Failed to add friend:', error);
+      console.error('Failed to send friend request:', error);
 
       // Check if the error is because email doesn't exist
       if (error.response?.status === 404) {
         toast.error(t('emailNotFound'));
+      } else if (error.response?.status === 409) {
+        toast.error(t('friendAlreadyExists') || 'Already friends or request pending');
       } else {
         toast.error(t('friendAddFailed'));
       }
@@ -316,6 +319,60 @@ export function Home() {
     });
   };
 
+  const handleAcceptFriendRequest = async (request: FriendRequest) => {
+    setProcessingRequestId(request.request_id);
+
+    try {
+      const response = await userApi.acceptFriendRequest(request.request_id);
+
+      // Add the new friend to contacts
+      const newContact: Contact = {
+        id: response.friend.id,
+        name: response.friend.friend_name,
+        email: response.friend.email,
+        status: 'online',
+      };
+
+      const updatedContacts = [...contacts, newContact];
+      setContacts(updatedContacts);
+      localStorage.setItem('uri-tomo-contacts', JSON.stringify(updatedContacts));
+
+      // Remove from pending requests
+      setPendingRequests(prev => prev.filter(r => r.request_id !== request.request_id));
+
+      // Dispatch event for other components
+      window.dispatchEvent(new Event('contacts-updated'));
+
+      toast.success(t('friendRequestAccepted'), {
+        description: `${request.sender.name}${t('friendRequestAccepted')}`,
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error('Failed to accept friend request:', error);
+      toast.error(t('friendAddFailed'));
+    } finally {
+      setProcessingRequestId(null);
+    }
+  };
+
+  const handleRejectFriendRequest = async (request: FriendRequest) => {
+    setProcessingRequestId(request.request_id);
+
+    try {
+      await userApi.rejectFriendRequest(request.request_id);
+
+      // Remove from pending requests
+      setPendingRequests(prev => prev.filter(r => r.request_id !== request.request_id));
+
+      toast.success(t('friendRequestRejected'));
+    } catch (error) {
+      console.error('Failed to reject friend request:', error);
+      toast.error(t('friendAddFailed'));
+    } finally {
+      setProcessingRequestId(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center bg-white">
@@ -336,13 +393,96 @@ export function Home() {
           <h3 className="font-bold text-gray-900 text-lg uppercase tracking-tight">{t('contacts')}</h3>
           <span className="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{contacts.length}</span>
         </div>
-        <button
-          onClick={() => setShowAddContact(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-yellow-400 to-amber-400 hover:from-yellow-500 hover:to-amber-500 text-white rounded-lg font-semibold transition-all shadow-md hover:shadow-lg active:scale-95"
-        >
-          <UserPlus className="h-5 w-5" />
-          <span>{t('add')}</span>
-        </button>
+        <div className="flex items-center gap-3">
+          {/* Mailbox Icon with Badge */}
+          <div className="relative">
+            <button
+              onClick={() => setShowRequestsPopover(!showRequestsPopover)}
+              className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 rounded-lg font-semibold transition-all shadow-sm hover:shadow-md active:scale-95"
+            >
+              <Mail className="h-5 w-5" />
+              {pendingRequests.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                  {pendingRequests.length}
+                </span>
+              )}
+            </button>
+
+            {/* Friend Requests Popover */}
+            {showRequestsPopover && (
+              <div className="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 max-h-[500px] overflow-y-auto">
+                <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+                  <h3 className="font-bold text-gray-900">{t('friendRequests')}</h3>
+                  <button
+                    onClick={() => setShowRequestsPopover(false)}
+                    className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <X className="h-5 w-5 text-gray-500" />
+                  </button>
+                </div>
+
+                <div className="divide-y divide-gray-100">
+                  {pendingRequests.length === 0 ? (
+                    <div className="p-8 text-center text-gray-500">
+                      <Mail className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                      <p>{t('noRequests')}</p>
+                    </div>
+                  ) : (
+                    pendingRequests.map((request) => (
+                      <div key={request.request_id} className="p-4 hover:bg-gray-50 transition-colors">
+                        <div className="flex items-start gap-3">
+                          {/* Avatar */}
+                          <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0">
+                            {request.sender.avatar ? (
+                              <span className="text-2xl">{request.sender.avatar}</span>
+                            ) : (
+                              <User className="h-6 w-6 text-yellow-600" />
+                            )}
+                          </div>
+
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-gray-900 truncate">{request.sender.name}</p>
+                            <p className="text-sm text-gray-500 truncate">{request.sender.email}</p>
+
+                            {/* Action Buttons */}
+                            <div className="flex gap-2 mt-3">
+                              <button
+                                onClick={() => handleAcceptFriendRequest(request)}
+                                disabled={processingRequestId === request.request_id}
+                                className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                              >
+                                <Check className="h-4 w-4" />
+                                {processingRequestId === request.request_id ? t('accepting') : t('acceptRequest')}
+                              </button>
+                              <button
+                                onClick={() => handleRejectFriendRequest(request)}
+                                disabled={processingRequestId === request.request_id}
+                                className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                              >
+                                <X className="h-4 w-4" />
+                                {processingRequestId === request.request_id ? t('rejecting') : t('rejectRequest')}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Add Friend Button */}
+          <button
+            onClick={() => setShowAddContact(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-yellow-400 to-amber-400 hover:from-yellow-500 hover:to-amber-500 text-white rounded-lg font-semibold transition-all shadow-md hover:shadow-lg active:scale-95"
+          >
+            <UserPlus className="h-5 w-5" />
+            <span>{t('add')}</span>
+          </button>
+        </div>
       </div>
 
       {/* Contacts List */}

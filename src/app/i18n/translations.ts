@@ -230,6 +230,19 @@ export const translations: Record<string, Record<Language, string>> = {
     dataLoadError: { ja: 'データを読み込めませんでした', ko: '데이터를 불러오지 못했습니다', en: 'Failed to load data' },
     friendAdded: { ja: '友達が追加されました', ko: '친구가 추가되었습니다', en: 'Friend added' },
     friendAddFailed: { ja: '友達の追加に失敗しました', ko: '친구 추가에 실패했습니다', en: 'Failed to add friend' },
+
+    // Friend Request System
+    friendRequestSent: { ja: '友達リクエストを送信しました', ko: '친구 요청을 보냈습니다', en: 'Friend request sent' },
+    friendRequestSentDesc: { ja: '相手が承認すると友達リストに表示されます。', ko: '상대방이 수락하면 친구 목록에 표시됩니다.', en: 'They will appear in your friends list once accepted.' },
+    friendRequestAccepted: { ja: 'が友達に追加されました', ko: '님이 친구로 추가되었습니다', en: ' has been added as a friend' },
+    friendRequestRejected: { ja: '友達リクエストを拒否しました', ko: '친구 요청을 거절했습니다', en: 'Friend request rejected' },
+    acceptRequest: { ja: '承認', ko: '수락', en: 'Accept' },
+    rejectRequest: { ja: '拒否', ko: '거절', en: 'Reject' },
+    friendRequests: { ja: '友達リクエスト', ko: '친구 요청', en: 'Friend Requests' },
+    noRequests: { ja: '受信したリクエストがありません', ko: '받은 요청이 없습니다', en: 'No pending requests' },
+    accepting: { ja: '承認中...', ko: '수락 중...', en: 'Accepting...' },
+    rejecting: { ja: '拒否中...', ko: '거절 중...', en: 'Rejecting...' },
+
     updateProfileFailed: { ja: 'プロフィールの更新に失敗しました', ko: '프로필 업데이트에 실패했습니다', en: 'Failed to update profile' },
 
     // API Errors
