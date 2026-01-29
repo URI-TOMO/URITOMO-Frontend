@@ -8,6 +8,7 @@ import { Card } from '../components/ui/card';
 import { toast } from 'sonner';
 import { authApi } from '../api/auth';
 import { useTranslation } from '../hooks/useTranslation';
+import { translations } from '../i18n/translations';
 
 interface LoginProps {
   onLogin: (email: string) => void;
@@ -76,19 +77,10 @@ export function Login({ onLogin }: LoginProps) {
       }
 
       // 2. 환영 메시지 (다국어 처리)
-      // Logic adjusted to use translation keys roughly
-      let welcomePrefix = '';
-      let welcomeSuffix = '';
-      if (currentLang === 'ja') {
-        welcomeSuffix = 'さん、ようこそ！';
-      } else if (currentLang === 'ko') {
-        welcomeSuffix = '님 환영합니다!';
-      } else {
-        welcomePrefix = 'Welcome, ';
-        welcomeSuffix = '!';
-      }
+      const welcomeTemplate = translations['welcomeMessage']?.[currentLang as 'ja' | 'ko' | 'en'] || translations['welcomeMessage']['en'];
+      const welcomeMsg = welcomeTemplate.replace('{name}', userName);
 
-      toast.success(`${welcomePrefix}${userName}${welcomeSuffix}`);
+      toast.success(welcomeMsg);
 
       // 3. 상위 컴포넌트에 알림
       onLogin(profile.email);

@@ -21,8 +21,16 @@ export const useTranslation = () => {
         };
     }, []);
 
-    const t = (key: string): string => {
-        return translations[key]?.[language] || key;
+    const t = (key: string, params?: Record<string, string | number>): string => {
+        let text = translations[key]?.[language] || key;
+
+        if (params) {
+            Object.entries(params).forEach(([paramKey, paramValue]) => {
+                text = text.replace(new RegExp(`{${paramKey}}`, 'g'), String(paramValue));
+            });
+        }
+
+        return text;
     };
 
     const setSystemLanguage = (lang: Language) => {

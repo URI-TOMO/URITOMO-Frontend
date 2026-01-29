@@ -172,6 +172,7 @@ export const translations: Record<string, Record<Language, string>> = {
     accountCreated: { ja: 'アカウントが作成されました！', ko: '계정이 생성되었습니다！', en: 'Account created successfully!' },
     resetLinkSent: { ja: 'パスワードリセットリンクを送信しました', ko: '비밀번호 재설정 링크를 보냈습니다', en: 'Password reset link sent' },
     welcomeUser: { ja: 'さん、ようこそ！', ko: '님 환영합니다!', en: 'Welcome, ' },
+    welcomeMessage: { ja: '{name}さん、ようこそ！', ko: '{name}님 환영합니다!', en: 'Welcome, {name}!' },
     loginGoogleComingSoon: { ja: 'Google (準備中)', ko: 'Google (준비중)', en: 'Google (Coming Soon)' },
     lineLoginComingSoon: { ja: 'ログインは準備中です。', ko: '로그인은 준비중입니다.', en: 'Login is coming soon.' },
     createAccountInfo: { ja: 'アカウントを作成すると、Uri-Tomoの日韓翻訳機能をフルに活用できます！', ko: '계정을 만들면 Uri-Tomo의 한일 번역 기능을 완전히 활용할 수 있습니다!', en: 'Create an account to fully utilize Uri-Tomo\'s Japanese-Korean translation features!' },
