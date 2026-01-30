@@ -56,7 +56,9 @@ interface ChatMessage {
   message: string;
   timestamp: Date;
   isAI?: boolean;
-  fileUrl?: string; //追加
+  fileUrl?: string;
+  lang?: string;           // Original message language
+  translation?: string;    // Translated text (if different language)
 }
 
 interface TermExplanation {
@@ -244,13 +246,76 @@ function ActiveMeetingContent({
             id: chatData.id || Date.now().toString(),
             sender: chatData.display_name,
             message: chatData.text,
-            timestamp: new Date(chatData.created_at || Date.now())
+            timestamp: new Date(chatData.created_at || Date.now()),
+            lang: chatData.lang || 'unknown'
           }
         ]);
       } else if (msg.type === 'room_connected') {
         toast.success(`Connected to room: ${msg.data.room_id}`);
       } else if (msg.type === 'translation') {
         const transData = msg.data;
+
+        // Handle chat translations - add to existing chat message
+        if (transData.message_type === 'chat') {
+          // Get related message ID directly from data (not from meta)
+          const relatedMessageId = transData.related_message_id || transData.meta?.related_message_id;
+          const translatedText = transData.translated || transData.translated_text || '';
+          const originalText = transData.Original || transData.original_text || '';
+
+          console.log('💬 Chat translation received:', {
+            relatedMessageId,
+            originalText,
+            translatedText,
+            source_lang: transData.source_lang,
+            target_lang: transData.target_lang,
+            systemLanguage
+          });
+
+          // Get user's language preference
+          const userLang = systemLanguage === 'ja' ? 'ja' :
+            systemLanguage === 'ko' ? 'ko' :
+              (systemLanguage?.toLowerCase().includes('ja') ? 'ja' : 'ko');
+
+          // Get source language of the chat message
+          const sourceLangRaw = transData.source_lang || transData.original_lang || '';
+          const sourceLang = sourceLangRaw.toLowerCase().includes('ja') ? 'ja' :
+            sourceLangRaw.toLowerCase().includes('ko') ? 'ko' : 'unknown';
+
+          // Only add translation if message is in a different language
+          if (sourceLang !== userLang && translatedText) {
+            console.log('✅ Adding translation to chat message:', { relatedMessageId, originalText, translatedText });
+            setChatMessages(prev => prev.map(chatMsg => {
+              // Match by message ID or by original text
+              if (chatMsg.id === relatedMessageId || chatMsg.message === originalText) {
+                console.log('🎯 Matched chat message:', chatMsg.id);
+                return { ...chatMsg, translation: translatedText };
+              }
+              return chatMsg;
+            }));
+          }
+          return; // Don't add to translation logs
+        }
+
+        // Handle STT translations - show in translation panel
+        if (transData.message_type && transData.message_type !== 'stt') {
+          return; // Skip non-STT translations
+        }
+
+        // Get the source language of the speech
+        const sourceLang = transData.source_lang || transData.lang || 'unknown';
+
+        // Get user's language preference (normalize to 'ja' or 'ko')
+        const userLang = systemLanguage === 'ja' ? 'ja' :
+          systemLanguage === 'ko' ? 'ko' :
+            (systemLanguage?.toLowerCase().includes('ja') ? 'ja' : 'ko');
+
+        // Only show translations from languages the user doesn't speak
+        // If user speaks Japanese, show Korean->Japanese translations (sourceLang === 'ko')
+        // If user speaks Korean, show Japanese->Korean translations (sourceLang === 'ja')
+        if (sourceLang === userLang) {
+          return; // Skip - user already understands this language
+        }
+
         // Support multiple formats of translation broadcast
         const speaker = transData.participant_name || transData.speaker || 'Unknown';
         const originalText = transData.Original || transData.original_text || '';
@@ -931,7 +996,27 @@ function ActiveMeetingContent({
                                         </a>
                                       ) : (
                                         // 通常のテキストメッセージ
-                                        <p className="whitespace-pre-wrap leading-relaxed">{msg.message}</p>
+                                        <>
+                                          <p className="whitespace-pre-wrap leading-relaxed">{msg.message}</p>
+                                          {/* 翻訳表示 (使用言語以外のメッセージの場合) */}
+                                          {msg.translation && (
+                                            <div className={`mt-2 pt-2 border-t ${msg.sender === currentUser.name
+                                              ? 'border-blue-400/50'
+                                              : 'border-gray-300'
+                                              }`}>
+                                              <div className="flex items-center gap-1 mb-1">
+                                                <Languages className="h-3 w-3 opacity-60" />
+                                                <span className="text-xs opacity-60">{t('translation')}</span>
+                                              </div>
+                                              <p className={`whitespace-pre-wrap leading-relaxed ${msg.sender === currentUser.name
+                                                ? 'text-blue-100'
+                                                : 'text-gray-600'
+                                                }`}>
+                                                {msg.translation}
+                                              </p>
+                                            </div>
+                                          )}
+                                        </>
                                       )}
                                     </div>
                                   </div>
