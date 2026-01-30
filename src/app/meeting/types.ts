@@ -33,6 +33,12 @@ export interface TranslationEvent {
     timestamp: string;
     sequence: string;
     lang: string;
+    // Optional fields for STT translations
+    message_type?: 'chat' | 'stt';
+    original_text?: string;
+    translated_text?: string;
+    source_lang?: string;
+    target_lang?: string;
     is_stt?: boolean;
 }
 

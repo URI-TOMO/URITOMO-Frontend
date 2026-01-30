@@ -56,7 +56,9 @@ interface ChatMessage {
   message: string;
   timestamp: Date;
   isAI?: boolean;
-  fileUrl?: string; //追加
+  fileUrl?: string;
+  lang?: string;           // Original message language
+  translation?: string;    // Translated text (if different language)
 }
 
 interface TermExplanation {
@@ -244,13 +246,76 @@ function ActiveMeetingContent({
             id: chatData.id || Date.now().toString(),
             sender: chatData.display_name,
             message: chatData.text,
-            timestamp: new Date(chatData.created_at || Date.now())
+            timestamp: new Date(chatData.created_at || Date.now()),
+            lang: chatData.lang || 'unknown'
           }
         ]);
       } else if (msg.type === 'room_connected') {
         toast.success(`Connected to room: ${msg.data.room_id}`);
       } else if (msg.type === 'translation') {
         const transData = msg.data;
+
+        // Handle chat translations - add to existing chat message
+        if (transData.message_type === 'chat') {
+          // Get related message ID directly from data (not from meta)
+          const relatedMessageId = transData.related_message_id || transData.meta?.related_message_id;
+          const translatedText = transData.translated || transData.translated_text || '';
+          const originalText = transData.Original || transData.original_text || '';
+
+          console.log('💬 Chat translation received:', {
+            relatedMessageId,
+            originalText,
+            translatedText,
+            source_lang: transData.source_lang,
+            target_lang: transData.target_lang,
+            systemLanguage
+          });
+
+          // Get user's language preference
+          const userLang = systemLanguage === 'ja' ? 'ja' :
+            systemLanguage === 'ko' ? 'ko' :
+              (systemLanguage?.toLowerCase().includes('ja') ? 'ja' : 'ko');
+
+          // Get source language of the chat message
+          const sourceLangRaw = transData.source_lang || transData.original_lang || '';
+          const sourceLang = sourceLangRaw.toLowerCase().includes('ja') ? 'ja' :
+            sourceLangRaw.toLowerCase().includes('ko') ? 'ko' : 'unknown';
+
+          // Only add translation if message is in a different language
+          if (sourceLang !== userLang && translatedText) {
+            console.log('✅ Adding translation to chat message:', { relatedMessageId, originalText, translatedText });
+            setChatMessages(prev => prev.map(chatMsg => {
+              // Match by message ID or by original text
+              if (chatMsg.id === relatedMessageId || chatMsg.message === originalText) {
+                console.log('🎯 Matched chat message:', chatMsg.id);
+                return { ...chatMsg, translation: translatedText };
+              }
+              return chatMsg;
+            }));
+          }
+          return; // Don't add to translation logs
+        }
+
+        // Handle STT translations - show in translation panel
+        if (transData.message_type && transData.message_type !== 'stt') {
+          return; // Skip non-STT translations
+        }
+
+        // Get the source language of the speech
+        const sourceLang = transData.source_lang || transData.lang || 'unknown';
+
+        // Get user's language preference (normalize to 'ja' or 'ko')
+        const userLang = systemLanguage === 'ja' ? 'ja' :
+          systemLanguage === 'ko' ? 'ko' :
+            (systemLanguage?.toLowerCase().includes('ja') ? 'ja' : 'ko');
+
+        // Only show translations from languages the user doesn't speak
+        // If user speaks Japanese, show Korean->Japanese translations (sourceLang === 'ko')
+        // If user speaks Korean, show Japanese->Korean translations (sourceLang === 'ja')
+        if (sourceLang === userLang) {
+          return; // Skip - user already understands this language
+        }
+
         // Support multiple formats of translation broadcast
         const speaker = transData.participant_name || transData.speaker || 'Unknown';
         const originalText = transData.Original || transData.original_text || '';
@@ -606,10 +671,10 @@ function ActiveMeetingContent({
                 <motion.div
                   animate={{
                     scale: isUriTomoSpeaking ? 1.02 : 1,
-                    borderColor: isUriTomoSpeaking ? '#FACC15' : 'transparent',
+                    borderColor: isUriTomoSpeaking ? '#FACC15' : 'rgba(250, 204, 21, 0)',
                     boxShadow: isUriTomoSpeaking ? '0 0 20px rgba(250, 204, 21, 0.4)' : 'none'
                   }}
-                  className="relative bg-gradient-to-br from-yellow-900 to-amber-900 rounded-xl overflow-hidden border-2 transition-all duration-300"
+                  className="relative bg-gradient-to-br from-yellow-900 to-amber-900 rounded-xl overflow-hidden border-2 border-transparent transition-all duration-300"
                 >
                   <div className="absolute top-3 right-3 z-10 bg-yellow-400 p-2 rounded-lg shadow-lg"><Pin className="h-4 w-4 text-gray-900" /></div>
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -627,10 +692,10 @@ function ActiveMeetingContent({
                 <motion.div
                   animate={{
                     scale: localParticipant?.isSpeaking ? 1.02 : 1,
-                    borderColor: localParticipant?.isSpeaking ? '#FACC15' : 'transparent',
+                    borderColor: localParticipant?.isSpeaking ? '#FACC15' : 'rgba(250, 204, 21, 0)',
                     boxShadow: localParticipant?.isSpeaking ? '0 0 20px rgba(250, 204, 21, 0.4)' : 'none'
                   }}
-                  className="relative bg-gray-800 rounded-xl overflow-hidden border-2 transition-all duration-300"
+                  className="relative bg-gray-800 rounded-xl overflow-hidden border-2 border-transparent transition-all duration-300"
                 >
                   <div className="absolute inset-0 flex items-center justify-center">
                     {localCameraTrack?.publication?.isSubscribed ? (
@@ -668,10 +733,10 @@ function ActiveMeetingContent({
                       key={track.participant.identity + track.source}
                       animate={{
                         scale: isSpeaking ? 1.02 : 1,
-                        borderColor: isSpeaking ? '#FACC15' : 'transparent',
+                        borderColor: isSpeaking ? '#FACC15' : 'rgba(250, 204, 21, 0)',
                         boxShadow: isSpeaking ? '0 0 20px rgba(250, 204, 21, 0.4)' : 'none'
                       }}
-                      className="relative bg-gray-800 rounded-xl overflow-hidden border-2 transition-all duration-300"
+                      className="relative bg-gray-800 rounded-xl overflow-hidden border-2 border-transparent transition-all duration-300"
                     >
                       <div className="absolute inset-0 flex items-center justify-center">
                         <VideoTrack
@@ -727,57 +792,7 @@ function ActiveMeetingContent({
                     </div>
                   </div>
 
-                  {/* Description Section */}
-                  <div className="border-b border-gray-200 bg-white max-h-48 overflow-y-auto flex-shrink-0">
-                    <div className="sticky top-0 bg-white px-4 pt-4 pb-2 border-b border-gray-100"><div className="flex items-center gap-2"><Bot className="h-4 w-4 text-yellow-600" /><h4 className="font-bold text-gray-900 text-sm">{t('description')}</h4><span className="text-xs text-gray-500">({termExplanations.length}{t('termExplanationCount')})</span></div></div>
-                    <div className="p-4">
-                      {termExplanations.length === 0 ? (
-                        <div className="text-center py-4">
-                          <p className="text-xs text-gray-500">
-                            {t('noExplanations')}
-                          </p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            {t('autoExplain')}
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {termExplanations.map((term, index) => (
-                            <motion.div
-                              key={term.id}
-                              initial={{ opacity: 0, x: -10 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: index * 0.05 }}
-                              className="bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg p-3 border border-yellow-200"
-                            >
-                              <div className="flex items-start gap-2 mb-1">
-                                <div className="w-1.5 h-1.5 bg-yellow-600 rounded-full mt-1.5 flex-shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="font-bold text-sm text-gray-900">
-                                      {term.term}
-                                    </span>
-                                    <span className="text-xs text-gray-400">
-                                      {term.timestamp.toLocaleTimeString('ja-JP', {
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                      })}
-                                    </span>
-                                  </div>
-                                  <p className="text-xs text-gray-700 leading-relaxed">
-                                    {term.explanation}
-                                  </p>
-                                  <p className="text-xs text-yellow-700 mt-1">
-                                    💬 {term.detectedFrom}
-                                  </p>
-                                </div>
-                              </div>
-                            </motion.div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
+
 
                   {/* Tab Navigation */}
                   <div className="flex border-b border-gray-200 bg-gray-50">
@@ -981,7 +996,27 @@ function ActiveMeetingContent({
                                         </a>
                                       ) : (
                                         // 通常のテキストメッセージ
-                                        <p className="whitespace-pre-wrap leading-relaxed">{msg.message}</p>
+                                        <>
+                                          <p className="whitespace-pre-wrap leading-relaxed">{msg.message}</p>
+                                          {/* 翻訳表示 (使用言語以外のメッセージの場合) */}
+                                          {msg.translation && (
+                                            <div className={`mt-2 pt-2 border-t ${msg.sender === currentUser.name
+                                              ? 'border-blue-400/50'
+                                              : 'border-gray-300'
+                                              }`}>
+                                              <div className="flex items-center gap-1 mb-1">
+                                                <Languages className="h-3 w-3 opacity-60" />
+                                                <span className="text-xs opacity-60">{t('translation')}</span>
+                                              </div>
+                                              <p className={`whitespace-pre-wrap leading-relaxed ${msg.sender === currentUser.name
+                                                ? 'text-blue-100'
+                                                : 'text-gray-600'
+                                                }`}>
+                                                {msg.translation}
+                                              </p>
+                                            </div>
+                                          )}
+                                        </>
                                       )}
                                     </div>
                                   </div>

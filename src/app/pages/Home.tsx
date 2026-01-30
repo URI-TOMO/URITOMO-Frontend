@@ -539,7 +539,7 @@ export function Home() {
                   >
                     <MoreVertical className="h-5 w-5" />
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56" align="end">
+                  <DropdownMenuContent className="w-56 bg-white border border-gray-200 shadow-xl" align="end">
                     <DropdownMenuItem
                       onClick={(e) => {
                         e.stopPropagation();

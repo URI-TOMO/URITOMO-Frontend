@@ -821,38 +821,47 @@ export function MeetingRoom() {
               </div>
             </div>
 
-            {/* Other Participants */}
-            {participants.filter(p => p.isOnline).map((participant) => (
-              <div
-                key={participant.id}
-                className="p-3 rounded-xl bg-white border border-gray-200 hover:border-yellow-300 hover:shadow-md transition-all"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
-                    {participant.name.charAt(0)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-gray-900 truncate">
-                      {participant.name}
-                    </p>
-                    <div className="flex items-center gap-1 mt-1">
-                      <span className="text-lg">{getCountryFlag(participant.locale)}</span>
-                      <span className="text-xs text-gray-600">{participant.locale?.toUpperCase() || 'N/A'}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            {/* Offline Participants */}
-            {participants.filter(p => !p.isOnline).length > 0 && (
+            {/* Online Participants */}
+            {participants.filter(p => p.isOnline && p.name !== userName).length > 0 && (
               <>
                 <div className="pt-4 pb-2">
                   <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                    {t('offline')} ({participants.filter(p => !p.isOnline).length})
+                    {t('online')} ({participants.filter(p => p.isOnline && p.name !== userName).length})
                   </h3>
                 </div>
-                {participants.filter(p => !p.isOnline).map((participant) => (
+                {participants.filter(p => p.isOnline && p.name !== userName).map((participant) => (
+                  <div
+                    key={participant.id}
+                    className="p-3 rounded-xl bg-white border border-gray-200 hover:border-yellow-300 hover:shadow-md transition-all"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                        {participant.name.charAt(0)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-gray-900 truncate">
+                          {participant.name}
+                        </p>
+                        <div className="flex items-center gap-1 mt-1">
+                          <span className="text-lg">{getCountryFlag(participant.locale)}</span>
+                          <span className="text-xs text-gray-600">{participant.locale?.toUpperCase() || 'N/A'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+
+            {/* Offline Participants */}
+            {participants.filter(p => !p.isOnline && p.name !== userName).length > 0 && (
+              <>
+                <div className="pt-4 pb-2">
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                    {t('offline')} ({participants.filter(p => !p.isOnline && p.name !== userName).length})
+                  </h3>
+                </div>
+                {participants.filter(p => !p.isOnline && p.name !== userName).map((participant) => (
                   <div
                     key={participant.id}
                     className="p-3 rounded-xl bg-gray-50 border border-gray-200"
