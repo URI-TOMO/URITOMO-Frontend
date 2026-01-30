@@ -240,6 +240,25 @@ function ActiveMeetingContent({
     const unsubscribe = ws.onMessage((msg) => {
       if (msg.type === 'chat') {
         const chatData = msg.data;
+
+        // Get user's language preference (normalize to 'Japanese' or 'Korean')
+        const userLang = systemLanguage === 'ja' ? 'Japanese' :
+          systemLanguage === 'ko' ? 'Korean' : 'Japanese';
+
+        // Get source language of the message
+        const msgLang = chatData.lang || 'unknown';
+
+        // Only show translation if message is in a different language than user's preference
+        const shouldShowTranslation = msgLang !== userLang && chatData.translated_text;
+
+        console.log('📨 Chat message received:', {
+          text: chatData.text,
+          lang: msgLang,
+          userLang,
+          translated_text: chatData.translated_text,
+          shouldShowTranslation
+        });
+
         setChatMessages(prev => [
           ...prev,
           {
@@ -247,7 +266,9 @@ function ActiveMeetingContent({
             sender: chatData.display_name,
             message: chatData.text,
             timestamp: new Date(chatData.created_at || Date.now()),
-            lang: chatData.lang || 'unknown'
+            lang: msgLang,
+            // Include translation if available and message is in different language
+            translation: shouldShowTranslation ? chatData.translated_text : undefined
           }
         ]);
       } else if (msg.type === 'room_connected') {
