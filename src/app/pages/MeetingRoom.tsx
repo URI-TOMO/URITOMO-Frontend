@@ -173,6 +173,10 @@ export function MeetingRoom() {
 
       setParticipants([...participants, newParticipant]);
 
+      if (roomDetail) {
+        setRoomDetail({ ...roomDetail, participant_count: roomDetail.participant_count + 1 });
+      }
+
       toast.success(t('memberAdded'), {
         description: `${result.name} (${result.locale})`,
         duration: 4000,

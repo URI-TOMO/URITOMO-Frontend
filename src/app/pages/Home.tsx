@@ -328,7 +328,7 @@ export function Home() {
       // Add the new friend to contacts
       const newContact: Contact = {
         id: response.friend.id,
-        name: response.friend.friend_name,
+        name: response.friend.friend_name || (response.friend as any).name,
         email: response.friend.email,
         status: 'online',
       };
