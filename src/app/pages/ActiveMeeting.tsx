@@ -6,12 +6,13 @@ import {
   Video, VideoOff, Mic, MicOff, PhoneOff, Users, Settings, Bot,
   MessageSquare, Languages, Pin, ChevronRight, ChevronLeft,
   MonitorUp, Paperclip, Smile, AlertTriangle, Clock, Send, Monitor, X,
-  User as UserIcon
+  User as UserIcon, Volume2
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { ProfileSettingsModal, SystemSettingsModal } from '../components/SettingsModals';
 import { toast } from 'sonner';
 import { meetingApi } from '../api/meeting';
+import { roomApi } from '../api/room';
 import { MeetingSocket } from '../meeting/websocket/client';
 // LiveKit imports
 import {
@@ -129,7 +130,20 @@ function ActiveMeetingContent({
   const [translationLogs, setTranslationLogs] = useState<TranslationLog[]>([]);
   const [termExplanations, setTermExplanations] = useState<TermExplanation[]>([]);
   // const [participants, setParticipants] = useState<Participant[]>([]); // Removed in favor of useParticipants
-  const [meetingTitle] = useState('日韓プロジェクト会議');
+  const [meetingTitle, setMeetingTitle] = useState('Loading...');
+
+  useEffect(() => {
+    if (meetingId) {
+      roomApi.getRoomDetail(meetingId)
+        .then(data => {
+          if (data.name) setMeetingTitle(data.name);
+        })
+        .catch(err => {
+          console.error('Failed to fetch room details:', err);
+          setMeetingTitle('Meeting');
+        });
+    }
+  }, [meetingId]);
 
   // Refs
   const chatInputRef = useRef<HTMLInputElement>(null);
@@ -366,7 +380,11 @@ function ActiveMeetingContent({
     try {
       await localParticipant.setMicrophoneEnabled(newState);
       setIsMicOn(newState);
-      toast(newState ? t('micOn') : t('micOff'));
+      if (newState) {
+        toast.success(t('micOn'));
+      } else {
+        toast.info(t('micOff'));
+      }
     } catch (e) {
       console.error(e);
       toast.error(t('changeFailed'));
@@ -379,11 +397,16 @@ function ActiveMeetingContent({
     try {
       await localParticipant.setCameraEnabled(newState);
       setIsVideoOn(newState);
-      toast(newState ? t('cameraOn') : t('cameraOff'));
+      if (newState) {
+        toast.success(t('cameraOn'));
+      } else {
+        toast.info(t('cameraOff'));
+      }
     } catch (e) {
       console.error(e);
       toast.error(t('changeFailed'));
     }
+
   };
 
   const handleSendChat = () => {
@@ -1175,34 +1198,34 @@ function ActiveMeetingContent({
             </div>
 
             <div className="overflow-y-auto p-6 space-y-6">
-              {/* Audio Settings */}
+              {/* Microphone Settings */}
               <div className="space-y-4">
-                <div className="flex items-center gap-2 border-b border-gray-200 pb-2"><Mic className="h-5 w-5 text-gray-700" /><h3 className="font-bold text-gray-900">{t('audioSettings')}</h3></div>
-                <div className="grid gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">{t('mic')}</label>
-                    <select
-                      value={selectedMicId}
-                      onChange={(e) => handleDeviceChange('audioinput', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 text-sm bg-white"
-                    >
-                      {!selectedMicId && <option value="" disabled>{t('selectingDevice')}</option>}
-                      {mics.map(m => <option key={m.deviceId} value={m.deviceId}>{m.label || `Microphone ${m.deviceId.slice(0, 5)}...`}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">{t('speaker')}</label>
-                    <select
-                      value={selectedSpeakerId}
-                      onChange={(e) => handleDeviceChange('audiooutput', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 text-sm bg-white"
-                      disabled={speakers.length === 0}
-                    >
-                      {!selectedSpeakerId && <option value="" disabled>{t('selectingDevice')}</option>}
-                      {speakers.map(s => <option key={s.deviceId} value={s.deviceId}>{s.label || `Speaker ${s.deviceId.slice(0, 5)}...`}</option>)}
-                    </select>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><p className="text-sm font-semibold text-gray-900">{t('noiseCancellation')}</p><p className="text-xs text-gray-500">{t('noiseCancellationDesc')}</p></div><input type="checkbox" className="toggle" defaultChecked /></div>
+                <div className="flex items-center gap-2 border-b border-gray-200 pb-2"><Mic className="h-5 w-5 text-gray-700" /><h3 className="font-bold text-gray-900">{t('mic')}</h3></div>
+                <div>
+                  <select
+                    value={selectedMicId}
+                    onChange={(e) => handleDeviceChange('audioinput', e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 text-sm bg-white"
+                  >
+                    {!selectedMicId && <option value="" disabled>{t('selectingDevice')}</option>}
+                    {mics.map(m => <option key={m.deviceId} value={m.deviceId}>{m.label || `Microphone ${m.deviceId.slice(0, 5)}...`}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Speaker Settings */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 border-b border-gray-200 pb-2"><Volume2 className="h-5 w-5 text-gray-700" /><h3 className="font-bold text-gray-900">{t('speaker')}</h3></div>
+                <div>
+                  <select
+                    value={selectedSpeakerId}
+                    onChange={(e) => handleDeviceChange('audiooutput', e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 text-sm bg-white"
+                    disabled={speakers.length === 0}
+                  >
+                    {!selectedSpeakerId && <option value="" disabled>{t('selectingDevice')}</option>}
+                    {speakers.map(s => <option key={s.deviceId} value={s.deviceId}>{s.label || `Speaker ${s.deviceId.slice(0, 5)}...`}</option>)}
+                  </select>
                 </div>
               </div>
 
@@ -1221,33 +1244,6 @@ function ActiveMeetingContent({
                       {cameras.map(c => <option key={c.deviceId} value={c.deviceId}>{c.label || `Camera ${c.deviceId.slice(0, 5)}...`}</option>)}
                     </select>
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">{t('resolution')}</label>
-                    <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 text-sm bg-white"><option>HD (720p)</option><option>Full HD (1080p)</option><option>4K (2160p)</option></select>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><p className="text-sm font-semibold text-gray-900">{t('beautyFilter')}</p><p className="text-xs text-gray-500">{t('beautyFilterDesc')}</p></div><input type="checkbox" className="toggle" /></div>
-                </div>
-              </div>
-
-              {/* Translation Settings */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 border-b border-gray-200 pb-2"><Languages className="h-5 w-5 text-yellow-600" /><h3 className="font-bold text-gray-900">{t('translationSettings')}</h3></div>
-                <div className="grid gap-4">
-                  <div className="flex items-center justify-between p-3 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-200"><div><p className="text-sm font-semibold text-gray-900">{t('realtimeTranslation')}</p><p className="text-xs text-gray-500">{t('realtimeTranslationDesc')}</p></div><input type="checkbox" className="toggle" defaultChecked /></div>
-                  <div className="flex items-center justify-between p-3 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-200"><div><p className="text-sm font-semibold text-gray-900">{t('termDescription')}</p><p className="text-xs text-gray-500">{t('termDescriptionDesc')}</p></div><input type="checkbox" className="toggle" defaultChecked /></div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">{t('translationPair')}</label>
-                    <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 text-sm bg-white"><option>🇯🇵 日本語 ⇄ 🇰🇷 韓国語</option><option>🇯🇵 日本語 ⇄ 🇺🇸 英語</option><option>🇰🇷 韓国語 ⇄ 🇺🇸 英語</option></select>
-                  </div>
-                </div>
-              </div>
-
-              {/* General Settings */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 border-b border-gray-200 pb-2"><Settings className="h-5 w-5 text-gray-700" /><h3 className="font-bold text-gray-900">{t('generalSettings')}</h3></div>
-                <div className="grid gap-4">
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><p className="text-sm font-semibold text-gray-900">{t('autoRecord')}</p><p className="text-xs text-gray-500">{t('autoRecordDesc')}</p></div><input type="checkbox" className="toggle" defaultChecked /></div>
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><p className="text-sm font-semibold text-gray-900">{t('notificationSound')}</p><p className="text-xs text-gray-500">{t('notificationSoundDesc')}</p></div><input type="checkbox" className="toggle" defaultChecked /></div>
                 </div>
               </div>
             </div>

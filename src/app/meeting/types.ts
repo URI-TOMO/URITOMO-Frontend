@@ -37,7 +37,7 @@ export interface TranslationEvent {
 }
 
 // WebSocket Message Types
-export type WSMessageType = 'chat' | 'room_connected' | 'translation' | 'ping' | 'pong' | 'error' | 'stt' | 'unknown_type';
+export type WSMessageType = 'chat' | 'room_connected' | 'translation' | 'ping' | 'pong' | 'error' | 'stt' | 'unknown_type' | 'explanation';
 
 export interface WSMessage {
     type: WSMessageType;
