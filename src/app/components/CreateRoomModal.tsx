@@ -93,9 +93,7 @@ export function CreateRoomModal({ isOpen, onClose, onCreate }: CreateRoomModalPr
                             autoFocus
                             disabled={isLoading}
                         />
-                        <p className="mt-2 text-xs text-gray-500">
-                            {t('roomNameDesc') || 'Enter a name for your new meeting room.'}
-                        </p>
+
                     </div>
                 </div>
 

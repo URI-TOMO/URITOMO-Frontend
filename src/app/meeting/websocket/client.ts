@@ -21,6 +21,12 @@ export class MeetingSocket {
     public connect() {
         if (this.socket) {
             if (this.socket.readyState === WebSocket.OPEN) return;
+
+            // Clear handlers before closing
+            this.socket.onopen = null;
+            this.socket.onmessage = null;
+            this.socket.onclose = null;
+            this.socket.onerror = null;
             this.socket.close();
         }
 
@@ -116,6 +122,12 @@ export class MeetingSocket {
     public disconnect() {
         this.isIntentionalClose = true;
         if (this.socket) {
+            // Prevent zombie events
+            this.socket.onopen = null;
+            this.socket.onmessage = null;
+            this.socket.onclose = null;
+            this.socket.onerror = null;
+
             this.socket.close();
             this.socket = null;
         }
@@ -159,8 +171,16 @@ export class MeetingSocket {
         this.socket.send(message);
     }
 
-    public sendChat(text: string, lang: string = 'ja') {
+    public sendChat(text: string, lang: string = 'ko') {
         this.send('chat', { text, lang });
+    }
+
+    public sendSTT(text: string, lang: string, is_final: boolean) {
+        this.send('stt', { text, lang, is_final });
+    }
+
+    public ping() {
+        this.send('ping');
     }
 
     public onMessage(handler: MessageHandler) {

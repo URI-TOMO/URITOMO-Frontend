@@ -328,7 +328,7 @@ export function Home() {
       // Add the new friend to contacts
       const newContact: Contact = {
         id: response.friend.id,
-        name: response.friend.friend_name,
+        name: response.friend.friend_name || (response.friend as any).name,
         email: response.friend.email,
         status: 'online',
       };
@@ -539,7 +539,7 @@ export function Home() {
                   >
                     <MoreVertical className="h-5 w-5" />
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56" align="end">
+                  <DropdownMenuContent className="w-56 bg-white border border-gray-200 shadow-xl" align="end">
                     <DropdownMenuItem
                       onClick={(e) => {
                         e.stopPropagation();

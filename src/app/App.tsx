@@ -21,17 +21,25 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Always start at login page
+    // Check if session is active (persists on refresh, clears on close)
+    const sessionActive = sessionStorage.getItem("uri-tomo-session-active");
+    const userEmail = localStorage.getItem("uri-tomo-user");
+
+    if (sessionActive === "true" && userEmail) {
+      setIsLoggedIn(true);
+    }
     setIsLoading(false);
   }, []);
 
   const handleLogin = (email: string) => {
     localStorage.setItem("uri-tomo-user", email);
+    sessionStorage.setItem("uri-tomo-session-active", "true");
     setIsLoggedIn(true);
   };
 
   const handleLogout = () => {
     localStorage.removeItem("uri-tomo-user");
+    sessionStorage.removeItem("uri-tomo-session-active");
     setIsLoggedIn(false);
   };
 
