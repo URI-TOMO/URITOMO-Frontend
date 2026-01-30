@@ -6,7 +6,7 @@ import {
   Video, VideoOff, Mic, MicOff, PhoneOff, Users, Settings, Bot,
   MessageSquare, Languages, Pin, ChevronRight, ChevronLeft,
   MonitorUp, Paperclip, Smile, AlertTriangle, Clock, Send, Monitor, X,
-  User as UserIcon, Volume2
+  User as UserIcon, Volume2, VolumeX, Volume1
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { ProfileSettingsModal, SystemSettingsModal } from '../components/SettingsModals';
@@ -110,6 +110,19 @@ function ActiveMeetingContent({
   const [selectedMicId, setSelectedMicId] = useState(initialDevices?.audioInputId || '');
   const [selectedCameraId, setSelectedCameraId] = useState(initialDevices?.videoInputId || '');
   const [selectedSpeakerId, setSelectedSpeakerId] = useState(initialDevices?.audioOutputId || '');
+  // Volume State
+  const [micVolume, setMicVolume] = useState(100);
+  const [speakerVolume, setSpeakerVolume] = useState(100);
+  const speakerVolumeRef = useRef(100);
+
+  // Update refs and audio elements when volume changes
+  useEffect(() => {
+    speakerVolumeRef.current = speakerVolume;
+    const audioElements = document.querySelectorAll('audio[data-participant-identity]');
+    audioElements.forEach((el: any) => {
+      el.volume = speakerVolume / 100;
+    });
+  }, [speakerVolume]);
 
   // Screen Share State
   const [isScreenSharing, setIsScreenSharing] = useState(false);
@@ -282,6 +295,7 @@ function ActiveMeetingContent({
         console.log('[LK] Attaching audio track from participant:', participant.identity);
         const audioElement = track.attach();
         audioElement.setAttribute('data-participant-identity', participant.identity);
+        audioElement.volume = speakerVolumeRef.current / 100;
         document.body.appendChild(audioElement);
       }
     };
@@ -1205,11 +1219,23 @@ function ActiveMeetingContent({
                   <select
                     value={selectedMicId}
                     onChange={(e) => handleDeviceChange('audioinput', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 text-sm bg-white"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 text-sm bg-white mb-3"
                   >
                     {!selectedMicId && <option value="" disabled>{t('selectingDevice')}</option>}
                     {mics.map(m => <option key={m.deviceId} value={m.deviceId}>{m.label || `Microphone ${m.deviceId.slice(0, 5)}...`}</option>)}
                   </select>
+                  <div className="flex items-center gap-3 px-1">
+                    <Volume1 className="h-4 w-4 text-gray-500" />
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={micVolume}
+                      onChange={(e) => setMicVolume(Number(e.target.value))}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-yellow-400"
+                    />
+                    <span className="text-xs font-semibold text-gray-600 w-8 text-right">{micVolume}%</span>
+                  </div>
                 </div>
               </div>
 
@@ -1220,12 +1246,24 @@ function ActiveMeetingContent({
                   <select
                     value={selectedSpeakerId}
                     onChange={(e) => handleDeviceChange('audiooutput', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 text-sm bg-white"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 text-sm bg-white mb-3"
                     disabled={speakers.length === 0}
                   >
                     {!selectedSpeakerId && <option value="" disabled>{t('selectingDevice')}</option>}
                     {speakers.map(s => <option key={s.deviceId} value={s.deviceId}>{s.label || `Speaker ${s.deviceId.slice(0, 5)}...`}</option>)}
                   </select>
+                  <div className="flex items-center gap-3 px-1">
+                    <VolumeX className="h-4 w-4 text-gray-500" />
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={speakerVolume}
+                      onChange={(e) => setSpeakerVolume(Number(e.target.value))}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-yellow-400"
+                    />
+                    <span className="text-xs font-semibold text-gray-600 w-8 text-right">{speakerVolume}%</span>
+                  </div>
                 </div>
               </div>
 
