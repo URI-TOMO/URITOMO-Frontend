@@ -1,28 +1,49 @@
-import apiClient from './client';
+﻿import apiClient from './client';
 import { AuthResponse, UserProfile } from './types';
 import { LoginRequest, SignupRequest } from './types';
 
-// 백엔드의 google_login.py 라우터 prefix가 '/auth' 이므로 경로를 맞춥니다.
+// Google ログイン関数
+// バックエンド app/user/google_login.py の /auth/google エンドポイントに対応
+
 export const authApi = {
-
-
-
+  /**
+   * Google ログイン（テスト用トークン対応）
+   * POST /auth/google
+   * @param token - Google ID Token または test-token
+   */
+  googleLogin: async (token: string): Promise<AuthResponse> => {
+    return apiClient.post<any, AuthResponse>('/auth/google', { token });
+  },
 
   /**
-   * 토큰 갱신
+   * トークン更新
    * POST /auth/refresh
    */
   refreshToken: async (): Promise<AuthResponse> => {
-    return apiClient.post<any, AuthResponse>('/refresh');
+    return apiClient.post<any, AuthResponse>('/auth/refresh');
   },
 
-  // 일반 로그인
+  /**
+   * メール/パスワード ログイン
+   * POST /auth/general_login
+   */
   login: async (data: LoginRequest): Promise<AuthResponse> => {
     return apiClient.post<any, AuthResponse>('/general_login', data);
   },
 
-  // 회원가입
+  /**
+   * ユーザー登録
+   * POST /auth/signup
+   */
   signup: async (data: SignupRequest): Promise<AuthResponse> => {
     return apiClient.post<any, AuthResponse>('/signup', data);
+  },
+
+  /**
+   * 現在のユーザー情報を取得
+   * GET /auth/me
+   */
+  getCurrentUser: async (): Promise<UserProfile> => {
+    return apiClient.get<any, UserProfile>('/auth/me');
   }
 };
