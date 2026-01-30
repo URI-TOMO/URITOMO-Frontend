@@ -365,35 +365,25 @@ function ActiveMeetingContent({
         const sourceLang = sourceLangRaw === 'ja' || sourceLangRaw.toLowerCase().includes('ja') ? 'ja' :
           sourceLangRaw === 'ko' || sourceLangRaw.toLowerCase().includes('ko') ? 'ko' : 'unknown';
 
-        // Get user's language preference (normalize to 'ja' or 'ko')
-        const userLang = systemLanguage === 'ja' ? 'ja' :
-          systemLanguage === 'ko' ? 'ko' :
-            (systemLanguage?.toLowerCase().includes('ja') ? 'ja' : 'ko');
-
-        // Only show translations from languages the user doesn't speak
-        if (sourceLang === userLang) {
-          console.log('🔇 Skipping STT - user speaks this language:', sourceLang);
-          return; // Skip - user already understands this language
-        }
-
         // Extract original and translated text
         const speaker = sttData.display_name || 'Unknown';
         const originalText = sttData.text || '';
         const translatedText = sttData.translated_text || '';
 
-        if (!originalText || !translatedText) {
-          console.log('⚠️ STT missing text or translation');
+        if (!originalText) {
+          console.log('⚠️ STT missing text');
           return;
         }
 
         // Add to translation logs for the translation panel
+        // Show all STT messages (including own speech) so user can see how their speech is translated
         setTranslationLogs(prev => [
           ...prev,
           {
             id: sttData.id || Date.now().toString(),
             speaker,
             originalText,
-            translatedText,
+            translatedText: translatedText || '(翻訳中...)', // Show placeholder if translation not ready
             originalLang: sourceLang as 'ja' | 'ko',
             timestamp: new Date(sttData.created_at || Date.now())
           }
