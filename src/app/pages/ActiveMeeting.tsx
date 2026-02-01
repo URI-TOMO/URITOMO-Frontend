@@ -27,6 +27,7 @@ import {
 import { Track, RoomEvent } from 'livekit-client';
 import '@livekit/components-styles';
 import { useTranslation } from '../hooks/useTranslation';
+import { isHiddenParticipant } from '../utils/participantFilter';
 
 // --- Utils ---
 const ensureMediaPermission = async () => {
@@ -97,7 +98,10 @@ function ActiveMeetingContent({
   const tracks = useTracks([Track.Source.Camera, Track.Source.ScreenShare], { onlySubscribed: false });
   const localCameraTrack = tracks.find(t => t.participant.isLocal && t.source === Track.Source.Camera);
   const localScreenTrack = tracks.find(t => t.participant.isLocal && t.source === Track.Source.ScreenShare);
-  const remoteTracks = tracks.filter(t => !t.participant.isLocal);
+
+  // Filter visible participants and tracks
+  const visibleParticipants = participants.filter(p => !isHiddenParticipant(p));
+  const remoteTracks = tracks.filter(t => !t.participant.isLocal && !isHiddenParticipant(t.participant));
 
   const [currentUser] = useState(currentUserProp);
 
@@ -559,7 +563,7 @@ function ActiveMeetingContent({
           name: currentUser.name,
           language: currentUser.language,
         },
-        ...participants.filter(p => !p.isLocal).map(p => ({
+        ...visibleParticipants.filter(p => !p.isLocal).map(p => ({
           id: p.sid,
           name: p.name || p.identity || 'Unknown',
           language: 'unknown',
@@ -1118,10 +1122,10 @@ function ActiveMeetingContent({
                       <div className="h-full overflow-y-auto p-4">
                         <div className="mb-4">
                           <h4 className="text-sm font-bold text-gray-900 mb-1">
-                            {t('participantsCount')} ({participants.length + 1})
+                            {t('participantsCount')} ({visibleParticipants.length + 1})
                           </h4>
                           <p className="text-xs text-gray-500">
-                            {participants.filter(p => p.isMicrophoneEnabled).length + (isMicOn ? 1 : 0)}{t('speaking')}
+                            {visibleParticipants.filter(p => p.isMicrophoneEnabled).length + (isMicOn ? 1 : 0)}{t('speaking')}
                           </p>
                         </div>
 
@@ -1186,7 +1190,7 @@ function ActiveMeetingContent({
                           </motion.div>
 
                           {/* Other Participants (Remote) */}
-                          {participants.filter(p => !p.isLocal).map((participant, index) => (
+                          {visibleParticipants.filter(p => !p.isLocal).map((participant, index) => (
                             <motion.div
                               key={participant.sid}
                               initial={{ opacity: 0, x: -10 }}
@@ -1413,7 +1417,7 @@ function ActiveMeetingContent({
                     <div className="bg-white rounded-lg p-3 text-center border border-gray-200">
                       <Users className="h-4 w-4 text-gray-600 mx-auto mb-1" />
                       <p className="text-xs text-gray-500">{t('participantsCount')}</p>
-                      <p className="text-lg font-bold text-gray-900">{participants.length + 2}</p>
+                      <p className="text-lg font-bold text-gray-900">{visibleParticipants.length + 2}</p>
                     </div>
                     <div className="bg-white rounded-lg p-3 text-center border border-gray-200">
                       <Languages className="h-4 w-4 text-yellow-600 mx-auto mb-1" />
