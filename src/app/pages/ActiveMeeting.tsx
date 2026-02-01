@@ -500,15 +500,7 @@ function ActiveMeetingContent({
           language: 'unknown',
         })),
       ],
-      translationLog: translationLogs.map(log => ({
-        id: log.id,
-        speaker: log.speaker,
-        originalText: log.originalText,
-        translatedText: log.translatedText,
-        originalLang: log.originalLang === 'ja' ? '🇯🇵 日本語' : '🇰🇷 한국어',
-        translatedLang: log.originalLang === 'ja' ? '🇰🇷 한국어' : '🇯🇵 日本語',
-        timestamp: log.timestamp.toISOString(),
-      })),
+
       chatMessages: chatMessages.map(msg => ({
         id: msg.id,
         userName: msg.sender,

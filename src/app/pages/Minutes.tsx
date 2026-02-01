@@ -19,15 +19,7 @@ interface MeetingMinutes {
     name: string;
     language?: string;
   }>;
-  translationLog: Array<{
-    id: string;
-    speaker: string;
-    originalText: string;
-    translatedText: string;
-    originalLang: string;
-    translatedLang: string;
-    timestamp: Date;
-  }>;
+
   chatMessages?: Array<{
     id: string;
     userName: string;
@@ -147,19 +139,12 @@ export function Minutes() {
         language: p.language,
       }));
 
-      // Ensure translationLog array exists and timestamps are Date objects
-      const translationLog = (meeting.translationLog || []).map((t: any) => ({
-        ...t,
-        timestamp: new Date(t.timestamp),
-      }));
-
       setMinutes({
         id: meeting.id,
         title: meeting.title,
         startTime: new Date(meeting.startTime),
         endTime: new Date(meeting.endTime),
         participants,
-        translationLog,
         chatMessages: meeting.chatMessages || [],
         summary,
       });
@@ -190,12 +175,7 @@ ${minutes.summary?.actionItems.map((a, i) => `${i + 1}. ${a}`).join('\n')}
 ${t('decisions')}:
 ${minutes.summary?.decisions.map((d, i) => `${i + 1}. ${d}`).join('\n')}
 
-${t('translationLog')}:
-${minutes.translationLog.map(t => `
-[${t.timestamp.toLocaleTimeString('ja-JP')}] ${t.speaker}
-${t.originalLang}: ${t.originalText}
-${t.translatedLang}: ${t.translatedText}
-`).join('\n')}
+
     `;
 
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
@@ -360,14 +340,10 @@ ${t.translatedLang}: ${t.translatedText}
 
         {/* Tabs */}
         <Tabs defaultValue="participants" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 bg-yellow-100">
+          <TabsList className="grid w-full grid-cols-1 bg-yellow-100">
             <TabsTrigger value="participants" className="data-[state=active]:bg-white">
               <Users className="h-4 w-4 mr-2" />
               {t('participants')}
-            </TabsTrigger>
-            <TabsTrigger value="translation" className="data-[state=active]:bg-white">
-              <Languages className="h-4 w-4 mr-2" />
-              {t('translationLog')}
             </TabsTrigger>
           </TabsList>
 
@@ -394,33 +370,7 @@ ${t.translatedLang}: ${t.translatedText}
             </Card>
           </TabsContent>
 
-          <TabsContent value="translation">
-            <Card className="p-6">
-              <h3 className="font-semibold text-lg text-gray-900 mb-4">{t('realtimeTranslationLog')}</h3>
-              <div className="space-y-4">
-                {minutes.translationLog.map((entry) => (
-                  <div key={entry.id} className="border-l-4 border-yellow-400 pl-4 py-2 bg-gray-50 rounded-r-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium text-gray-900">{entry.speaker}</span>
-                      <span className="text-sm text-gray-600">
-                        {new Date(entry.timestamp).toLocaleTimeString('ja-JP')}
-                      </span>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="bg-white p-3 rounded">
-                        <p className="text-xs text-gray-600 mb-1">{entry.originalLang}</p>
-                        <p className="text-gray-900">{entry.originalText}</p>
-                      </div>
-                      <div className="bg-yellow-50 p-3 rounded border border-yellow-200">
-                        <p className="text-xs text-gray-600 mb-1">{entry.translatedLang}</p>
-                        <p className="text-gray-900">{entry.translatedText}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </TabsContent>
+
         </Tabs>
       </main>
 
