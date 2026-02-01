@@ -219,6 +219,8 @@ export const translations: Record<string, Record<Language, string>> = {
 
     // Popups & Errors (General)
     memberAdded: { ja: 'メンバーが追加されました', ko: '멤버가 추가되었습니다', en: 'Member added' },
+    roomInvited: { ja: 'ルームに招待されました: {room}', ko: '새 방에 초대되었습니다: {room}', en: 'You were invited to {room}' },
+    roomRejoined: { ja: 'ルームに再参加しました: {room}', ko: '방에 다시 참여했습니다: {room}', en: 'Rejoined room: {room}' },
     emailNotFound: { ja: 'そのメールアドレスのユーザーが見つかりませんでした', ko: '해당 이메일의 사용자를 찾을 수 없습니다', en: 'User with this email not found' },
     roomNotFound: { ja: 'ルームが見つかりませんでした', ko: '룸을 찾을 수 없습니다', en: 'Room not found' },
     notFound: { ja: 'ユーザーまたはルームが見つかりませんでした', ko: '사용자 또는 룸을 찾을 수 없습니다', en: 'User or Room not found' },

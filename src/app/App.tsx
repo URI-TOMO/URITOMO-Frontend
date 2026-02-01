@@ -15,10 +15,13 @@ import { DirectChat } from "./pages/DirectChat";
 import { Chat } from "./pages/Chat";
 import { Layout } from "./components/Layout";
 import { Toaster } from "./components/ui/sonner";
+import { useRoomInviteSSE } from "./hooks/useRoomInviteSSE";
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  useRoomInviteSSE({ enabled: isLoggedIn });
 
   useEffect(() => {
     // Check if session is active (persists on refresh, clears on close)

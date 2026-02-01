@@ -159,6 +159,18 @@ export function Home() {
 
   }, []);
 
+  useEffect(() => {
+    const handleRoomsUpdated = () => {
+      const savedRooms = JSON.parse(localStorage.getItem('uri-tomo-rooms') || '[]');
+      setRooms(savedRooms);
+    };
+
+    window.addEventListener('rooms-updated', handleRoomsUpdated);
+    return () => {
+      window.removeEventListener('rooms-updated', handleRoomsUpdated);
+    };
+  }, []);
+
   // Fetch friend requests on mount
   useEffect(() => {
     const fetchFriendRequests = async () => {
