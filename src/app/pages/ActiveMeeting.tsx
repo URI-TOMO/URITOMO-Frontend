@@ -240,6 +240,25 @@ function ActiveMeetingContent({
     const unsubscribe = ws.onMessage((msg) => {
       if (msg.type === 'chat') {
         const chatData = msg.data;
+
+        // Get user's language preference (normalize to 'Japanese' or 'Korean')
+        const userLang = systemLanguage === 'ja' ? 'Japanese' :
+          systemLanguage === 'ko' ? 'Korean' : 'Japanese';
+
+        // Get source language of the message
+        const msgLang = chatData.lang || 'unknown';
+
+        // Only show translation if message is in a different language than user's preference
+        const shouldShowTranslation = msgLang !== userLang && chatData.translated_text;
+
+        console.log('📨 Chat message received:', {
+          text: chatData.text,
+          lang: msgLang,
+          userLang,
+          translated_text: chatData.translated_text,
+          shouldShowTranslation
+        });
+
         setChatMessages(prev => [
           ...prev,
           {
@@ -247,7 +266,9 @@ function ActiveMeetingContent({
             sender: chatData.display_name,
             message: chatData.text,
             timestamp: new Date(chatData.created_at || Date.now()),
-            lang: chatData.lang || 'unknown'
+            lang: msgLang,
+            // Include translation if available and message is in different language
+            translation: shouldShowTranslation ? chatData.translated_text : undefined
           }
         ]);
       } else if (msg.type === 'room_connected') {
@@ -333,6 +354,42 @@ function ActiveMeetingContent({
             timestamp: new Date(transData.timestamp || transData.created_at || Date.now())
           }
         ]);
+      } else if (msg.type === 'stt') {
+        // Handle STT messages with translation
+        const sttData = msg.data;
+
+        console.log('🎤 STT message received:', sttData);
+
+        // Get the source language of the speech (normalize to 'ja' or 'ko')
+        const sourceLangRaw = sttData.lang || 'unknown';
+        const sourceLang = sourceLangRaw === 'ja' || sourceLangRaw.toLowerCase().includes('ja') ? 'ja' :
+          sourceLangRaw === 'ko' || sourceLangRaw.toLowerCase().includes('ko') ? 'ko' : 'unknown';
+
+        // Extract original and translated text
+        const speaker = sttData.display_name || 'Unknown';
+        const originalText = sttData.text || '';
+        const translatedText = sttData.translated_text || '';
+
+        if (!originalText) {
+          console.log('⚠️ STT missing text');
+          return;
+        }
+
+        // Add to translation logs for the translation panel
+        // Show all STT messages (including own speech) so user can see how their speech is translated
+        setTranslationLogs(prev => [
+          ...prev,
+          {
+            id: sttData.id || Date.now().toString(),
+            speaker,
+            originalText,
+            translatedText: translatedText || '(翻訳中...)', // Show placeholder if translation not ready
+            originalLang: sourceLang as 'ja' | 'ko',
+            timestamp: new Date(sttData.created_at || Date.now())
+          }
+        ]);
+
+        console.log('✅ Added STT translation to panel:', { speaker, originalText, translatedText });
       } else if (msg.type === 'explanation') {
         const expData = msg.data?.data || msg.data;
         setTermExplanations(prev => [
@@ -355,7 +412,7 @@ function ActiveMeetingContent({
       unsubscribe();
       ws.disconnect();
     };
-  }, [meetingId]);
+  }, [meetingId, systemLanguage]);
 
   // --- Logic 1.6: Track Subscription Event Listener ---
   useEffect(() => {
