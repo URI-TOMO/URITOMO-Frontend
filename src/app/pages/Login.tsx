@@ -125,8 +125,15 @@ export function Login({ onLogin }: LoginProps) {
 
       toast.success(t('accountCreated'));
 
-      // 회원가입 성공 후 자동 로그인 처리
-      await handleAuthSuccess(response);
+      // 회원가입 성공 후 자동 로그인 처리하지 않고 로그인 화면으로 이동
+      setEmail(newAccountEmail);
+
+      // 회원가입 폼 초기화
+      setNewAccountEmail('');
+      setNewAccountPassword('');
+      setNewAccountConfirmPassword('');
+      setNewAccountName('');
+
       setIsCreatingAccount(false);
 
     } catch (error: any) {
