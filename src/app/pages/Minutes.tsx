@@ -132,12 +132,19 @@ export function Minutes() {
         decisions: [],
       };
 
-      // Ensure participants array exists and is properly formatted
-      const participants = (meeting.participants || []).map((p: any) => ({
-        id: p.id || String(Math.random()),
-        name: p.name || 'Unknown',
-        language: p.language,
-      }));
+      // Ensure participants array exists and is properly formatted, filtering out system participants
+      const participants = (meeting.participants || [])
+        .filter((p: any) => {
+          const name = (p.name || '').toLowerCase();
+          const id = (p.id || '').toLowerCase();
+          return !name.includes('worker') && !name.includes('livekit') &&
+            !id.includes('worker') && !id.includes('livekit');
+        })
+        .map((p: any) => ({
+          id: p.id || String(Math.random()),
+          name: p.name || 'Unknown',
+          language: p.language,
+        }));
 
       setMinutes({
         id: meeting.id,
