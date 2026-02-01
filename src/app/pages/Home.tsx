@@ -65,99 +65,98 @@ export function Home() {
 
 
 
-  useEffect(() => {
-    const fetchMainData = async () => {
-      try {
-        setIsLoading(true);
-        const data: MainDataResponse = await userApi.getMainData();
+  const fetchMainData = async () => {
+    try {
+      setIsLoading(true);
+      const data: MainDataResponse = await userApi.getMainData();
 
-        // 1. Update User Info
-        setUserName(data.user.display_name);
-        setUserEmail(data.user.email);
+      // 1. Update User Info
+      setUserName(data.user.display_name);
+      setUserEmail(data.user.email);
 
-        if (data.user.lang && ['ja', 'ko', 'en'].includes(data.user.lang)) {
-          setSystemLanguage(data.user.lang as 'ja' | 'ko' | 'en');
-        }
-
-        // 2. Update Rooms
-        const mappedRooms: Room[] = data.rooms.map(room => ({
-          id: room.id,
-          name: room.name
-        }));
-        setRooms(mappedRooms);
-
-        // 3. Update Contacts (Friends)
-        const mappedContacts: Contact[] = data.user_friends.map(friend => ({
-          id: friend.id,
-          name: friend.friend_name,
-          email: friend.email,
-          status: 'online', // Default to online or handle based on real status if available
-        }));
-        setContacts(mappedContacts);
-
-        // 4. Fetch detailed profile (for avatar)
-        try {
-          const profile = await userApi.getProfile();
-          if (profile) {
-            setUserName(profile.display_name || data.user.display_name);
-            setUserEmail(profile.email || data.user.email);
-
-            if (profile.picture) {
-              setUserAvatar(profile.picture);
-              // Simple heuristic for avatar type
-              if (profile.picture.startsWith('http') || profile.picture.startsWith('/')) {
-                setAvatarType('image');
-              } else {
-                setAvatarType('emoji');
-              }
-            } else {
-              setAvatarType('none');
-            }
-          }
-        } catch (e) {
-          console.warn('Failed to fetch detailed profile, using main data');
-        }
-
-        // Update localStorage as a fallback/cache if needed
-        localStorage.setItem('uri-tomo-user', data.user.email);
-        const existingProfile = JSON.parse(localStorage.getItem('uri-tomo-user-profile') || '{}');
-        localStorage.setItem('uri-tomo-user-profile', JSON.stringify({
-          ...existingProfile,
-          name: data.user.display_name,
-          email: data.user.email,
-          // update avatar if we got it? 
-        }));
-        localStorage.setItem('uri-tomo-rooms', JSON.stringify(mappedRooms));
-        localStorage.setItem('uri-tomo-contacts', JSON.stringify(mappedContacts));
-
-        // Dispatch events for other components to update
-        window.dispatchEvent(new Event('profile-updated'));
-        window.dispatchEvent(new Event('rooms-updated'));
-        window.dispatchEvent(new Event('contacts-updated'));
-
-      } catch (error) {
-        console.error('Failed to fetch main data:', error);
-        toast.error(t('dataLoadError'));
-
-        // Fallback to localStorage on error
-        const savedRooms = JSON.parse(localStorage.getItem('uri-tomo-rooms') || '[]');
-        if (savedRooms.length > 0) setRooms(savedRooms);
-
-        const savedContacts = JSON.parse(localStorage.getItem('uri-tomo-contacts') || '[]');
-        if (savedContacts.length > 0) setContacts(savedContacts);
-
-        const savedUser = localStorage.getItem('uri-tomo-user');
-        if (savedUser) {
-          setUserEmail(savedUser);
-          setUserName(savedUser.split('@')[0]);
-        }
-      } finally {
-        setIsLoading(false);
+      if (data.user.lang && ['ja', 'ko', 'en'].includes(data.user.lang)) {
+        setSystemLanguage(data.user.lang as 'ja' | 'ko' | 'en');
       }
-    };
 
+      // 2. Update Rooms
+      const mappedRooms: Room[] = data.rooms.map(room => ({
+        id: room.id,
+        name: room.name
+      }));
+      setRooms(mappedRooms);
+
+      // 3. Update Contacts (Friends)
+      const mappedContacts: Contact[] = data.user_friends.map(friend => ({
+        id: friend.id,
+        name: friend.friend_name,
+        email: friend.email,
+        status: 'online', // Default to online or handle based on real status if available
+      }));
+      setContacts(mappedContacts);
+
+      // 4. Fetch detailed profile (for avatar)
+      try {
+        const profile = await userApi.getProfile();
+        if (profile) {
+          setUserName(profile.display_name || data.user.display_name);
+          setUserEmail(profile.email || data.user.email);
+
+          if (profile.picture) {
+            setUserAvatar(profile.picture);
+            // Simple heuristic for avatar type
+            if (profile.picture.startsWith('http') || profile.picture.startsWith('/')) {
+              setAvatarType('image');
+            } else {
+              setAvatarType('emoji');
+            }
+          } else {
+            setAvatarType('none');
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to fetch detailed profile, using main data');
+      }
+
+      // Update localStorage as a fallback/cache if needed
+      localStorage.setItem('uri-tomo-user', data.user.email);
+      const existingProfile = JSON.parse(localStorage.getItem('uri-tomo-user-profile') || '{}');
+      localStorage.setItem('uri-tomo-user-profile', JSON.stringify({
+        ...existingProfile,
+        name: data.user.display_name,
+        email: data.user.email,
+        // update avatar if we got it? 
+      }));
+      localStorage.setItem('uri-tomo-rooms', JSON.stringify(mappedRooms));
+      localStorage.setItem('uri-tomo-contacts', JSON.stringify(mappedContacts));
+
+      // Dispatch events for other components to update
+      window.dispatchEvent(new Event('profile-updated'));
+      window.dispatchEvent(new Event('contacts-updated'));
+      window.dispatchEvent(new Event('rooms-updated')); // Notify Sidebar to reload from LS
+
+    } catch (error) {
+      console.error('Failed to fetch main data:', error);
+      toast.error(t('dataLoadError'));
+
+      // Fallback to localStorage on error
+      const savedRooms = JSON.parse(localStorage.getItem('uri-tomo-rooms') || '[]');
+      if (savedRooms.length > 0) setRooms(savedRooms);
+
+      const savedContacts = JSON.parse(localStorage.getItem('uri-tomo-contacts') || '[]');
+      if (savedContacts.length > 0) setContacts(savedContacts);
+
+      const savedUser = localStorage.getItem('uri-tomo-user');
+      if (savedUser) {
+        setUserEmail(savedUser);
+        setUserName(savedUser.split('@')[0]);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchMainData();
-
   }, []);
 
   // Fetch friend requests on mount
@@ -329,10 +328,12 @@ export function Home() {
         await roomApi.acceptInvite(request.request_id);
 
         toast.success(t('roomInviteAccepted') || 'Joined room');
+
+        // Refresh data immediately
+        await fetchMainData();
+
         if (request.room_id) {
           navigate(`/meeting/${request.room_id}`);
-        } else {
-          window.dispatchEvent(new Event('rooms-updated'));
         }
       } else {
         // Use userApi for friend requests
