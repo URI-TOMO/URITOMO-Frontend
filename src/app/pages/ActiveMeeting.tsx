@@ -611,6 +611,7 @@ function ActiveMeetingContent({
     // 会議の包括的なレコードを作成
     const meetingRecord = {
       id: Date.now().toString(),
+      roomId: meetingId, // Store the actual room ID for navigation back
       title: meetingTitle,
       startTime: startTime.toISOString(),
       endTime: endTime.toISOString(),

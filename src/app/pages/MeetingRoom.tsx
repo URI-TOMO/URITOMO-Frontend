@@ -299,9 +299,9 @@ export function MeetingRoom() {
       localStorage.getItem('meetings') || '[]'
     );
 
-    // Filter minutes for this room only and remove duplicates
+    // Filter minutes for this room only using roomId field and remove duplicates
     const roomMinutes = savedMinutes
-      .filter((m: any) => m.id === id || m.id?.startsWith(id))
+      .filter((m: any) => m.roomId === id) // Use roomId field to match current room
       .reduce((unique: any[], current: any) => {
         // Check if this ID already exists in the unique array
         const exists = unique.find(item => item.id === current.id);

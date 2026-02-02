@@ -38,6 +38,7 @@ export function Minutes() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [minutes, setMinutes] = useState<MeetingMinutes | null>(null);
+  const [roomId, setRoomId] = useState<string | null>(null); // Store roomId for navigation
 
   // Profile and system settings states
   const [showProfileSettings, setShowProfileSettings] = useState(false);
@@ -126,6 +127,9 @@ export function Minutes() {
     const meeting = savedMeetings.find((m: any) => m.id === id);
 
     if (meeting) {
+      // Store roomId for navigation
+      setRoomId(meeting.roomId || null);
+
       // Use summary from meeting or empty
       const summary = meeting.summary || {
         keyPoints: [],
@@ -212,7 +216,14 @@ ${minutes.summary?.decisions.map((d, i) => `${i + 1}. ${d}`).join('\n')}
             <div className="flex items-center gap-4">
               <Button
                 variant="ghost"
-                onClick={() => navigate(`/meeting/${id}`, { state: { activeTab: 'documents' } })}
+                onClick={() => {
+                  // Use stored roomId if available, otherwise go to home
+                  if (roomId) {
+                    navigate(`/meeting/${roomId}`, { state: { activeTab: 'documents' } });
+                  } else {
+                    navigate('/home');
+                  }
+                }}
                 className="text-white hover:bg-white/20"
               >
                 <ArrowLeft className="h-5 w-5" />
