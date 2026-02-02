@@ -991,7 +991,6 @@ function ActiveMeetingContent({
                         </div>
                         <div>
                           <h3 className="text-white font-bold text-sm">Uri-Tomo</h3>
-                          <p className="text-yellow-100 text-xs">{t('aiAssistant')}</p>
                         </div>
                       </div>
                       <button
@@ -1367,7 +1366,6 @@ function ActiveMeetingContent({
                                 </span>
                                 <Pin className="h-3 w-3 text-yellow-600" />
                               </div>
-                              <p className="text-xs text-gray-600">{t('aiAssistant')}</p>
                             </div>
                             <div className="flex items-center gap-1">
                               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
