@@ -621,8 +621,7 @@ function ActiveMeetingContent({
           language: currentUser.language,
         },
         ...visibleParticipants.filter(p => !p.isLocal).map(p => ({
-          id: p.sid,
-          name: p.name || p.identity || 'Unknown',
+          name: p.name || 'Unknown',
           language: 'unknown',
         })),
       ],
@@ -746,7 +745,7 @@ function ActiveMeetingContent({
                           <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
                             <div className="bg-black/70 backdrop-blur-sm px-3 py-1 rounded-lg flex items-center gap-2">
                               <Monitor className="h-4 w-4 text-blue-400" />
-                              <span className="text-white text-sm font-semibold">{track.participant.identity}</span>
+                              <span className="text-white text-sm font-semibold">{track.participant.name || 'Unknown'}</span>
                               <span className="text-xs bg-blue-400 text-black px-2 py-0.5 rounded font-bold">{t('screenShare')}</span>
                             </div>
                           </div>
@@ -813,7 +812,7 @@ function ActiveMeetingContent({
                         </div>
                         <div className="absolute bottom-1 left-1 right-1 flex items-center justify-between">
                           <div className="bg-black/70 px-2 py-0.5 rounded">
-                            <span className="text-white text-xs truncate max-w-[100px]">{track.participant.identity}</span>
+                            <span className="text-white text-xs truncate max-w-[100px]">{track.participant.name || 'Unknown'}</span>
                           </div>
                           {!track.participant.isMicrophoneEnabled && <div className="bg-red-600 p-1 rounded"><MicOff className="h-3 w-3 text-white" /></div>}
                         </div>
@@ -889,7 +888,7 @@ function ActiveMeetingContent({
                         </div>
                         <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
                           <div className="bg-black/70 backdrop-blur-sm px-3 py-1 rounded-lg flex items-center gap-2">
-                            <span className="text-white text-sm font-semibold">{track.participant.identity}</span>
+                            <span className="text-white text-sm font-semibold">{track.participant.name || 'Unknown'}</span>
                             {track.source === Track.Source.ScreenShare ?
                               <span className="text-xs bg-white text-black px-2 py-0.5 rounded font-bold">{t('screenShare')}</span> :
                               <span className="text-xs text-gray-300 bg-gray-600 px-2 py-0.5 rounded">{t('remote')}</span>
@@ -1346,12 +1345,12 @@ function ActiveMeetingContent({
                               className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200"
                             >
                               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center text-white font-bold">
-                                {(participant.name || participant.identity || '?').charAt(0).toUpperCase()}
+                                {(participant.name || '?').charAt(0).toUpperCase()}
                               </div>
                               <div className="flex-1">
                                 <div className="flex items-center gap-2">
                                   <span className="text-sm font-semibold text-gray-900">
-                                    {participant.name || participant.identity || 'Unknown'}
+                                    {participant.name || 'Unknown'}
                                   </span>
                                   <span className="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded">
                                     {t('remote')}
