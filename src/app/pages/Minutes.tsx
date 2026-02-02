@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { ProfileSettingsModal, SystemSettingsModal } from '../components/SettingsModals';
 import { toast } from 'sonner';
 import { useTranslation } from '../hooks/useTranslation';
+import { isHiddenParticipant } from '../utils/participantFilter';
 
 interface MeetingMinutes {
   id: string;
@@ -133,11 +134,13 @@ export function Minutes() {
       };
 
       // Ensure participants array exists and is properly formatted
-      const participants = (meeting.participants || []).map((p: any) => ({
-        id: p.id || String(Math.random()),
-        name: p.name || 'Unknown',
-        language: p.language,
-      }));
+      const participants = (meeting.participants || [])
+        .filter((p: any) => !isHiddenParticipant(p))
+        .map((p: any) => ({
+          id: p.id || String(Math.random()),
+          name: p.name || 'Unknown',
+          language: p.language,
+        }));
 
       setMinutes({
         id: meeting.id,
