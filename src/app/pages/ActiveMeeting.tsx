@@ -13,6 +13,7 @@ import { ProfileSettingsModal, SystemSettingsModal } from '../components/Setting
 import { toast } from 'sonner';
 import { meetingApi } from '../api/meeting';
 import { roomApi } from '../api/room';
+import { getMockSummaryData } from '../utils/mockSummary';
 import { MeetingSocket } from '../meeting/websocket/client';
 // LiveKit imports
 import {
@@ -608,6 +609,9 @@ function ActiveMeetingContent({
   const confirmEndMeeting = () => {
     const endTime = new Date();
 
+    // Get mock summary data based on system language
+    const summaryData = getMockSummaryData(systemLanguage);
+
     // 会議の包括的なレコードを作成
     const meetingRecord = {
       id: Date.now().toString(),
@@ -634,25 +638,7 @@ function ActiveMeetingContent({
         timestamp: msg.timestamp.toISOString(),
         isAI: msg.isAI,
       })),
-      summary: {
-        keyPoints: [
-          '런칭 1주일 전, 고화질 영상 업로드 시 서버 지연(5초 이상) 및 셧다운 위험 발생',
-          '4K 화질 유지는 마케팅의 핵심 전략이므로 화질 타협 불가',
-          'Uri-Tomo AI가 비동기 처리 및 점진적 화질 적용 방식을 제안하여 채택됨',
-          '최악의 경우 대기열 초과 시 일시적 업로드 차단 및 예약 시스템으로 전환하기로 결정',
-        ],
-        actionItems: [
-          '비동기 처리 시스템 개발 및 개발 서버 반영 - 내일 아침까지 완료 (Ryu)',
-          '고화질 변환 중 아이콘 및 프로그레스바 UI 디자인 제작 (Jin)',
-          '업로드 제한 중 화면 및 알림 예약 UI 디자인 작성 (Jin)',
-          '서킷 브레이커 기능을 백엔드에 구현하여 시스템 과부하 방지 (Ryu)',
-        ],
-        decisions: [
-          '1안: 비동기 처리(Asynchronous Processing)를 통한 저화질 프리뷰 우선 생성 및 4K 원본 후처리',
-          '2안: 대기열 한계치(5,000건) 초과 시 Upload Throttling 및 예약 알림 시스템 적용',
-          '런칭 종료 후 개발팀에게 야키니쿠 회식 제공 (Shuhei 약속)',
-        ],
-      },
+      summary: summaryData,
     };
 
     // localStorageへ保存

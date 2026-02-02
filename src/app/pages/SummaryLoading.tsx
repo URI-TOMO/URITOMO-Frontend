@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Bot, Clock, Users, Languages, Sparkles, FileText } from 'lucide-react';
+import { Bot, Sparkles, FileText, Users } from 'lucide-react';
+import { useTranslation } from '../hooks/useTranslation';
 
 export function SummaryLoading() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const [progress, setProgress] = useState(0);
 
     useEffect(() => {
@@ -122,10 +124,10 @@ export function SummaryLoading() {
                             </div>
                         </motion.div>
                         <h2 className="text-white font-bold text-2xl mb-2">
-                            Uri-Tomo AI가 회의를 분석하고 있습니다
+                            {t('aiAnalyzing')}
                         </h2>
                         <p className="text-yellow-100 text-sm">
-                            AI 기반 회의 요약을 생성 중입니다...
+                            {t('generatingSummary')}
                         </p>
                     </div>
                 </div>
@@ -136,7 +138,7 @@ export function SummaryLoading() {
                         {/* Progress Bar */}
                         <div className="space-y-2">
                             <div className="flex items-center justify-between text-sm mb-2">
-                                <span className="text-gray-300 font-medium">생성 진행률</span>
+                                <span className="text-gray-300 font-medium">{t('generationProgress')}</span>
                                 <motion.span
                                     className="text-yellow-400 font-bold"
                                     animate={{ opacity: [1, 0.5, 1] }}
@@ -176,8 +178,8 @@ export function SummaryLoading() {
                                 transition={{ delay: 0.2 }}
                             >
                                 <Sparkles className="h-6 w-6 text-yellow-400 mx-auto mb-2 animate-pulse" />
-                                <p className="text-xs text-gray-300 mb-1">주요 내용</p>
-                                <p className="text-sm font-bold text-white">분석 중</p>
+                                <p className="text-xs text-gray-300 mb-1">{t('analyzingKeyPoints')}</p>
+                                <p className="text-sm font-bold text-white">{t('analyzing')}</p>
                             </motion.div>
                             <motion.div
                                 className="bg-gray-800/50 border border-yellow-400/30 rounded-xl p-4 text-center"
@@ -186,8 +188,8 @@ export function SummaryLoading() {
                                 transition={{ delay: 0.4 }}
                             >
                                 <FileText className="h-6 w-6 text-blue-400 mx-auto mb-2 animate-pulse" />
-                                <p className="text-xs text-gray-300 mb-1">액션 아이템</p>
-                                <p className="text-sm font-bold text-white">추출 중</p>
+                                <p className="text-xs text-gray-300 mb-1">{t('extractingActions')}</p>
+                                <p className="text-sm font-bold text-white">{t('extracting')}</p>
                             </motion.div>
                             <motion.div
                                 className="bg-gray-800/50 border border-yellow-400/30 rounded-xl p-4 text-center"
@@ -196,8 +198,8 @@ export function SummaryLoading() {
                                 transition={{ delay: 0.6 }}
                             >
                                 <Users className="h-6 w-6 text-green-400 mx-auto mb-2 animate-pulse" />
-                                <p className="text-xs text-gray-300 mb-1">결정 사항</p>
-                                <p className="text-sm font-bold text-white">정리 중</p>
+                                <p className="text-xs text-gray-300 mb-1">{t('organizingDecisions')}</p>
+                                <p className="text-sm font-bold text-white">{t('organizing')}</p>
                             </motion.div>
                         </div>
 
@@ -205,20 +207,20 @@ export function SummaryLoading() {
                         <div className="bg-gradient-to-br from-yellow-900/30 to-amber-900/30 border border-yellow-400/20 rounded-xl p-5">
                             <h3 className="text-yellow-400 font-semibold mb-3 flex items-center gap-2">
                                 <FileText className="h-4 w-4" />
-                                회의 정보
+                                {t('meetingInfo')}
                             </h3>
                             <div className="grid grid-cols-3 gap-4 text-center">
                                 <div>
                                     <p className="text-2xl font-bold text-white mb-1">{stats.duration}</p>
-                                    <p className="text-xs text-gray-400">회의 시간</p>
+                                    <p className="text-xs text-gray-400">{t('meetingDuration')}</p>
                                 </div>
                                 <div>
                                     <p className="text-2xl font-bold text-white mb-1">{stats.participants}</p>
-                                    <p className="text-xs text-gray-400">참가자 수</p>
+                                    <p className="text-xs text-gray-400">{t('numParticipants')}</p>
                                 </div>
                                 <div>
                                     <p className="text-2xl font-bold text-white mb-1">{stats.translations}</p>
-                                    <p className="text-xs text-gray-400">번역 횟수</p>
+                                    <p className="text-xs text-gray-400">{t('numTranslations')}</p>
                                 </div>
                             </div>
                         </div>
@@ -231,7 +233,7 @@ export function SummaryLoading() {
                         >
                             <Sparkles className="h-5 w-5 text-blue-400 flex-shrink-0" />
                             <p className="text-sm text-blue-200">
-                                잠시만 기다려 주세요. Uri-Tomo AI가 회의 내용을 종합하여 요약 문서를 작성하고 있습니다.
+                                {t('pleaseWait')}
                             </p>
                         </motion.div>
                     </div>
