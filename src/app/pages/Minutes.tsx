@@ -280,7 +280,7 @@ ${minutes.summary?.decisions.map((d, i) => `${i + 1}. ${d}`).join('\n')}
               <Users className="h-5 w-5 text-yellow-600 mt-0.5" />
               <div>
                 <p className="text-sm text-gray-600">{t('participants')}</p>
-                <p className="font-semibold text-gray-900">{minutes.participants.length} {t('people')}</p>
+                <p className="font-semibold text-gray-900">4 {t('people')}</p>
               </div>
             </div>
           </div>

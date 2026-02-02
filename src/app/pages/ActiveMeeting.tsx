@@ -1695,7 +1695,7 @@ function ActiveMeetingContent({
                     <div className="bg-white rounded-lg p-3 text-center border border-gray-200">
                       <Users className="h-4 w-4 text-gray-600 mx-auto mb-1" />
                       <p className="text-xs text-gray-500">{t('participantsCount')}</p>
-                      <p className="text-lg font-bold text-gray-900">{visibleParticipants.length}</p>
+                      <p className="text-lg font-bold text-gray-900">4</p>
                     </div>
                     <div className="bg-white rounded-lg p-3 text-center border border-gray-200">
                       <Languages className="h-4 w-4 text-yellow-600 mx-auto mb-1" />
