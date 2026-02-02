@@ -6,7 +6,7 @@ import {
   Video, VideoOff, Mic, MicOff, PhoneOff, Users, Settings, Bot,
   MessageSquare, Languages, Pin, ChevronRight, ChevronLeft,
   MonitorUp, Paperclip, Smile, AlertTriangle, Clock, Send, Monitor, X,
-  User as UserIcon, Volume2, VolumeX, Volume1
+  User as UserIcon, Volume2, VolumeX, Volume1, Sparkles, FileText
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { ProfileSettingsModal, SystemSettingsModal } from '../components/SettingsModals';
@@ -636,21 +636,21 @@ function ActiveMeetingContent({
       })),
       summary: {
         keyPoints: [
-          'プロジェクトの進捗状況について全体的な共有が行われました',
-          '次期スプリントの計画とマイルストーンが確認されました',
-          '日韓チーム間のコラボレーションが順調に進んでいることが報告されました',
-          '技術的な課題について建設的な議論が行われました',
+          '런칭 1주일 전, 고화질 영상 업로드 시 서버 지연(5초 이상) 및 셧다운 위험 발생',
+          '4K 화질 유지는 마케팅의 핵심 전략이므로 화질 타협 불가',
+          'Uri-Tomo AI가 비동기 처리 및 점진적 화질 적용 방식을 제안하여 채택됨',
+          '최악의 경우 대기열 초과 시 일시적 업로드 차단 및 예약 시스템으로 전환하기로 결정',
         ],
         actionItems: [
-          '次回ミーティングまでに各チームがタスクを完了する（' + (participants[0]?.name || '担当者A') + '）',
-          'KPI レポートを作成し共有する（' + (participants[1]?.name || '担当者B') + '）',
-          'デザインレビューを実施する（' + currentUser.name + '）',
-          '技術ドキュメントを更新する（Uri-Tomo AI）',
+          '비동기 처리 시스템 개발 및 개발 서버 반영 - 내일 아침까지 완료 (Ryu)',
+          '고화질 변환 중 아이콘 및 프로그레스바 UI 디자인 제작 (Jin)',
+          '업로드 제한 중 화면 및 알림 예약 UI 디자인 작성 (Jin)',
+          '서킷 브레이커 기능을 백엔드에 구현하여 시스템 과부하 방지 (Ryu)',
         ],
         decisions: [
-          '次期スプリントのリリース日を2週間後に設定',
-          '隔週で日韓合同ミーティングを継続実施',
-          'Uri-TomoのAI翻訳機能を全プロジェクトに展開',
+          '1안: 비동기 처리(Asynchronous Processing)를 통한 저화질 프리뷰 우선 생성 및 4K 원본 후처리',
+          '2안: 대기열 한계치(5,000건) 초과 시 Upload Throttling 및 예약 알림 시스템 적용',
+          '런칭 종료 후 개발팀에게 야키니쿠 회식 제공 (Shuhei 약속)',
         ],
       },
     };
@@ -659,8 +659,9 @@ function ActiveMeetingContent({
     const savedMeetings = JSON.parse(localStorage.getItem('meetings') || '[]');
     const updatedMeetings = [...savedMeetings, meetingRecord];
     localStorage.setItem('meetings', JSON.stringify(updatedMeetings));
-    // 実際の議事録保存処理などがここに入ります
-    navigate(`/minutes/${meetingRecord.id}`);
+
+    // Navigate to summary loading page (10 second animation before showing minutes)
+    navigate(`/summary-loading/${meetingRecord.id}`);
   };
 
   // --- Initial Data ---
@@ -1697,7 +1698,6 @@ function ActiveMeetingContent({
         onNameChange={setEditedUserName}
         onAvatarChange={setEditedUserAvatar}
         onAvatarTypeChange={setEditedAvatarType}
-        onAvatarImageUpload={(e) => { }}
         onSave={() => setShowProfileSettings(false)}
       />
     </div>

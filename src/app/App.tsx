@@ -11,6 +11,7 @@ import { MeetingRoom } from "./pages/MeetingRoom";
 import { MeetingSetup } from "./pages/MeetingSetup";
 import { ActiveMeeting } from "./pages/ActiveMeeting";
 import { Minutes } from "./pages/Minutes";
+import { SummaryLoading } from "./pages/SummaryLoading";
 import { DirectChat } from "./pages/DirectChat";
 import { Chat } from "./pages/Chat";
 import { Layout } from "./components/Layout";
@@ -91,6 +92,11 @@ export default function App() {
           <Route
             path="/active-meeting/:id"
             element={<ActiveMeeting />}
+          />
+          {/* Summary Loading - Full Screen Transition */}
+          <Route
+            path="/summary-loading/:id"
+            element={<SummaryLoading />}
           />
         </Routes>
       )}
