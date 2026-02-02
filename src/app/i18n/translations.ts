@@ -99,6 +99,8 @@ export const translations: Record<string, Record<Language, string>> = {
     attachFile: { ja: 'ファイルを添付', ko: '파일 첨부', en: 'Attach File' },
     speaking: { ja: '人が発言中', ko: '명 발언 중', en: ' speaking' },
     selectScreenToShare: { ja: '共有する画面を選択', ko: '공유할 화면 선택', en: 'Select screen to share' },
+    selectWindowOrScreen: { ja: '共有するウィンドウまたは画面を選択してください', ko: '공유할 창 또는 화면을 선택하세요', en: 'Select a window or screen to share' },
+    noScreensAvailable: { ja: '利用可能な画面がありません', ko: '사용 가능한 화면이 없습니다', en: 'No screens available' },
     audioSettings: { ja: 'オーディオ設定', ko: '오디오 설정', en: 'Audio Settings' },
     videoSettings: { ja: 'ビデオ設定', ko: '비디오 설정', en: 'Video Settings' },
     translationSettings: { ja: 'Uri-Tomo AI翻訳設定', ko: 'Uri-Tomo AI 번역 설정', en: 'Uri-Tomo AI Translation' },

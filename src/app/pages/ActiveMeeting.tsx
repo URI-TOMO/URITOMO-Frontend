@@ -715,99 +715,189 @@ function ActiveMeetingContent({
           {/* Video Grid */}
           <Panel defaultSize={isSidebarOpen ? 70 : 100} minSize={50}>
             <div className="h-full p-4 bg-gray-900 flex flex-col">
-              <div className="flex-1 grid grid-cols-2 gap-4 min-h-0">
-                {/* Uri-Tomo Bot */}
-                <motion.div
-                  animate={{
-                    scale: isUriTomoSpeaking ? 1.02 : 1,
-                    borderColor: isUriTomoSpeaking ? '#FACC15' : 'rgba(250, 204, 21, 0)',
-                    boxShadow: isUriTomoSpeaking ? '0 0 20px rgba(250, 204, 21, 0.4)' : 'none'
-                  }}
-                  className="relative bg-gradient-to-br from-yellow-900 to-amber-900 rounded-xl overflow-hidden border-2 border-transparent transition-all duration-300"
-                >
-                  <div className="absolute top-3 right-3 z-10 bg-yellow-400 p-2 rounded-lg shadow-lg"><Pin className="h-4 w-4 text-gray-900" /></div>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-full h-full bg-gradient-to-br from-yellow-400/20 to-amber-400/20 flex items-center justify-center">
-                      <Bot className={`h-12 w-12 text-white ${isUriTomoSpeaking ? 'animate-pulse' : ''}`} />
-                    </div>
-                  </div>
-                  <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
-                    <div className="bg-black/70 backdrop-blur-sm px-3 py-1 rounded-lg flex items-center gap-2"><span className="text-white text-sm font-semibold">Uri-Tomo</span><span className="text-xs text-yellow-300 bg-yellow-600 px-2 py-0.5 rounded font-semibold">AI</span></div>
-                    <div className={`bg-green-600 p-2 rounded-lg ${isUriTomoSpeaking ? 'animate-pulse' : ''}`}><Mic className="h-4 w-4 text-white" /></div>
-                  </div>
-                </motion.div>
-
-                {/* Local User (Camera) */}
-                <motion.div
-                  animate={{
-                    scale: localParticipant?.isSpeaking ? 1.02 : 1,
-                    borderColor: localParticipant?.isSpeaking ? '#FACC15' : 'rgba(250, 204, 21, 0)',
-                    boxShadow: localParticipant?.isSpeaking ? '0 0 20px rgba(250, 204, 21, 0.4)' : 'none'
-                  }}
-                  className="relative bg-gray-800 rounded-xl overflow-hidden border-2 border-transparent transition-all duration-300"
-                >
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    {localCameraTrack?.publication?.isSubscribed ? (
-                      <VideoTrack trackRef={localCameraTrack} className="w-full h-full object-cover" style={{ transform: 'scaleX(-1)' }} />
+              {/* Screen Share Active: Display screen share as main view */}
+              {(localScreenTrack || remoteTracks.some(t => t.source === Track.Source.ScreenShare)) ? (
+                <div className="flex-1 flex flex-col gap-4 min-h-0">
+                  {/* Main Screen Share View */}
+                  <div className="flex-1 min-h-0">
+                    {localScreenTrack ? (
+                      <motion.div className="relative w-full h-full bg-gray-800 rounded-xl overflow-hidden border-2 border-yellow-400">
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <VideoTrack trackRef={localScreenTrack} className="w-full h-full object-contain bg-black" />
+                        </div>
+                        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
+                          <div className="bg-black/70 backdrop-blur-sm px-3 py-1 rounded-lg flex items-center gap-2">
+                            <Monitor className="h-4 w-4 text-yellow-400" />
+                            <span className="text-white text-sm font-semibold">{currentUser.name} ({t('screenShare')})</span>
+                            <span className="text-xs bg-yellow-400 text-black px-2 py-0.5 rounded font-bold">YOU</span>
+                          </div>
+                        </div>
+                      </motion.div>
                     ) : (
-                      <div className="w-full h-full bg-gray-800 flex items-center justify-center"><div className="w-24 h-24 rounded-full bg-gradient-to-br from-yellow-400 to-amber-400 flex items-center justify-center text-white font-bold text-3xl">{currentUser?.name?.charAt(0) || '?'}</div></div>
+                      remoteTracks.filter(t => t.source === Track.Source.ScreenShare).slice(0, 1).map((track) => (
+                        <motion.div key={track.participant.identity + track.source} className="relative w-full h-full bg-gray-800 rounded-xl overflow-hidden border-2 border-blue-400">
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <VideoTrack trackRef={track} className="w-full h-full object-contain bg-black" />
+                          </div>
+                          <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
+                            <div className="bg-black/70 backdrop-blur-sm px-3 py-1 rounded-lg flex items-center gap-2">
+                              <Monitor className="h-4 w-4 text-blue-400" />
+                              <span className="text-white text-sm font-semibold">{track.participant.identity}</span>
+                              <span className="text-xs bg-blue-400 text-black px-2 py-0.5 rounded font-bold">{t('screenShare')}</span>
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))
                     )}
                   </div>
-                  <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
-                    <div className="bg-black/70 backdrop-blur-sm px-3 py-1 rounded-lg flex items-center gap-2"><span className="text-white text-sm font-semibold">{currentUser.name} ({t('you')})</span></div>
-                    {!isMicOn && <div className="bg-red-600 p-2 rounded-lg"><MicOff className="h-4 w-4 text-white" /></div>}
-                  </div>
-                </motion.div>
 
-                {/* Local User (Screen Share) */}
-                {localScreenTrack && (
-                  <motion.div className="relative bg-gray-800 rounded-xl overflow-hidden border-2 border-yellow-400 transition-all">
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <VideoTrack trackRef={localScreenTrack} className="w-full h-full object-contain bg-black" />
-                    </div>
-                    <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
-                      <div className="bg-black/70 backdrop-blur-sm px-3 py-1 rounded-lg flex items-center gap-2">
-                        <span className="text-white text-sm font-semibold">{currentUser.name} ({t('screenShare')})</span>
-                        <span className="text-xs bg-white text-black px-2 py-0.5 rounded font-bold">YOU</span>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-
-                {/* Remote Participants (修正: カメラ映像のみ反転) */}
-                {remoteTracks.map((track) => {
-                  const isSpeaking = track.participant.isSpeaking;
-                  return (
+                  {/* Participant Thumbnails Row */}
+                  <div className="h-32 flex gap-2 overflow-x-auto pb-2">
+                    {/* Uri-Tomo Bot Thumbnail */}
                     <motion.div
-                      key={track.participant.identity + track.source}
                       animate={{
-                        scale: isSpeaking ? 1.02 : 1,
-                        borderColor: isSpeaking ? '#FACC15' : 'rgba(250, 204, 21, 0)',
-                        boxShadow: isSpeaking ? '0 0 20px rgba(250, 204, 21, 0.4)' : 'none'
+                        scale: isUriTomoSpeaking ? 1.02 : 1,
+                        borderColor: isUriTomoSpeaking ? '#FACC15' : 'rgba(250, 204, 21, 0)',
                       }}
-                      className="relative bg-gray-800 rounded-xl overflow-hidden border-2 border-transparent transition-all duration-300"
+                      className="relative flex-shrink-0 w-40 h-full bg-gradient-to-br from-yellow-900 to-amber-900 rounded-lg overflow-hidden border-2 border-transparent"
                     >
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <VideoTrack
-                          trackRef={track}
-                          className={`w-full h-full ${track.source === Track.Source.ScreenShare ? 'object-contain bg-black' : 'object-cover'}`}
-                          style={track.source === Track.Source.Camera ? { transform: 'scaleX(-1)' } : undefined}
-                        />
+                        <Bot className={`h-8 w-8 text-white ${isUriTomoSpeaking ? 'animate-pulse' : ''}`} />
                       </div>
-                      <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
-                        <div className="bg-black/70 backdrop-blur-sm px-3 py-1 rounded-lg flex items-center gap-2">
-                          <span className="text-white text-sm font-semibold">{track.participant.name || track.participant.identity}</span>
-                          {track.source === Track.Source.ScreenShare ?
-                            <span className="text-xs bg-white text-black px-2 py-0.5 rounded font-bold">{t('screenShare')}</span> :
-                            <span className="text-xs text-gray-300 bg-gray-600 px-2 py-0.5 rounded">{t('remote')}</span>
-                          }
+                      <div className="absolute bottom-1 left-1 right-1">
+                        <div className="bg-black/70 px-2 py-0.5 rounded text-center">
+                          <span className="text-white text-xs font-semibold">Uri-Tomo</span>
                         </div>
-                        {!track.participant.isMicrophoneEnabled && track.source !== Track.Source.ScreenShare && <div className="bg-red-600 p-2 rounded-lg"><MicOff className="h-4 w-4 text-white" /></div>}
                       </div>
                     </motion.div>
-                  );
-                })}
-              </div>
+
+                    {/* Local Camera Thumbnail */}
+                    <motion.div
+                      animate={{
+                        scale: localParticipant?.isSpeaking ? 1.02 : 1,
+                        borderColor: localParticipant?.isSpeaking ? '#FACC15' : 'rgba(250, 204, 21, 0)',
+                      }}
+                      className="relative flex-shrink-0 w-40 h-full bg-gray-800 rounded-lg overflow-hidden border-2 border-transparent"
+                    >
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        {localCameraTrack?.publication?.isSubscribed ? (
+                          <VideoTrack trackRef={localCameraTrack} className="w-full h-full object-cover" style={{ transform: 'scaleX(-1)' }} />
+                        ) : (
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-yellow-400 to-amber-400 flex items-center justify-center text-white font-bold text-lg">{currentUser?.name?.charAt(0) || '?'}</div>
+                        )}
+                      </div>
+                      <div className="absolute bottom-1 left-1 right-1 flex items-center justify-between">
+                        <div className="bg-black/70 px-2 py-0.5 rounded">
+                          <span className="text-white text-xs">{t('you')}</span>
+                        </div>
+                        {!isMicOn && <div className="bg-red-600 p-1 rounded"><MicOff className="h-3 w-3 text-white" /></div>}
+                      </div>
+                    </motion.div>
+
+                    {/* Remote Camera Thumbnails (exclude screen shares) */}
+                    {remoteTracks.filter(t => t.source === Track.Source.Camera).map((track) => (
+                      <motion.div
+                        key={track.participant.identity + track.source}
+                        animate={{
+                          scale: track.participant.isSpeaking ? 1.02 : 1,
+                          borderColor: track.participant.isSpeaking ? '#FACC15' : 'rgba(250, 204, 21, 0)',
+                        }}
+                        className="relative flex-shrink-0 w-40 h-full bg-gray-800 rounded-lg overflow-hidden border-2 border-transparent"
+                      >
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <VideoTrack trackRef={track} className="w-full h-full object-cover" style={{ transform: 'scaleX(-1)' }} />
+                        </div>
+                        <div className="absolute bottom-1 left-1 right-1 flex items-center justify-between">
+                          <div className="bg-black/70 px-2 py-0.5 rounded">
+                            <span className="text-white text-xs truncate max-w-[100px]">{track.participant.identity}</span>
+                          </div>
+                          {!track.participant.isMicrophoneEnabled && <div className="bg-red-600 p-1 rounded"><MicOff className="h-3 w-3 text-white" /></div>}
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                /* Normal Grid Layout (No Screen Share) */
+                <div className="flex-1 grid grid-cols-2 gap-4 min-h-0">
+                  {/* Uri-Tomo Bot */}
+                  <motion.div
+                    animate={{
+                      scale: isUriTomoSpeaking ? 1.02 : 1,
+                      borderColor: isUriTomoSpeaking ? '#FACC15' : 'rgba(250, 204, 21, 0)',
+                      boxShadow: isUriTomoSpeaking ? '0 0 20px rgba(250, 204, 21, 0.4)' : 'none'
+                    }}
+                    className="relative bg-gradient-to-br from-yellow-900 to-amber-900 rounded-xl overflow-hidden border-2 border-transparent transition-all duration-300"
+                  >
+                    <div className="absolute top-3 right-3 z-10 bg-yellow-400 p-2 rounded-lg shadow-lg"><Pin className="h-4 w-4 text-gray-900" /></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-full h-full bg-gradient-to-br from-yellow-400/20 to-amber-400/20 flex items-center justify-center">
+                        <Bot className={`h-12 w-12 text-white ${isUriTomoSpeaking ? 'animate-pulse' : ''}`} />
+                      </div>
+                    </div>
+                    <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
+                      <div className="bg-black/70 backdrop-blur-sm px-3 py-1 rounded-lg flex items-center gap-2"><span className="text-white text-sm font-semibold">Uri-Tomo</span><span className="text-xs text-yellow-300 bg-yellow-600 px-2 py-0.5 rounded font-semibold">AI</span></div>
+                      <div className={`bg-green-600 p-2 rounded-lg ${isUriTomoSpeaking ? 'animate-pulse' : ''}`}><Mic className="h-4 w-4 text-white" /></div>
+                    </div>
+                  </motion.div>
+
+                  {/* Local User (Camera) */}
+                  <motion.div
+                    animate={{
+                      scale: localParticipant?.isSpeaking ? 1.02 : 1,
+                      borderColor: localParticipant?.isSpeaking ? '#FACC15' : 'rgba(250, 204, 21, 0)',
+                      boxShadow: localParticipant?.isSpeaking ? '0 0 20px rgba(250, 204, 21, 0.4)' : 'none'
+                    }}
+                    className="relative bg-gray-800 rounded-xl overflow-hidden border-2 border-transparent transition-all duration-300"
+                  >
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      {localCameraTrack?.publication?.isSubscribed ? (
+                        <VideoTrack trackRef={localCameraTrack} className="w-full h-full object-cover" style={{ transform: 'scaleX(-1)' }} />
+                      ) : (
+                        <div className="w-full h-full bg-gray-800 flex items-center justify-center"><div className="w-24 h-24 rounded-full bg-gradient-to-br from-yellow-400 to-amber-400 flex items-center justify-center text-white font-bold text-3xl">{currentUser?.name?.charAt(0) || '?'}</div></div>
+                      )}
+                    </div>
+                    <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
+                      <div className="bg-black/70 backdrop-blur-sm px-3 py-1 rounded-lg flex items-center gap-2"><span className="text-white text-sm font-semibold">{currentUser.name} ({t('you')})</span></div>
+                      {!isMicOn && <div className="bg-red-600 p-2 rounded-lg"><MicOff className="h-4 w-4 text-white" /></div>}
+                    </div>
+                  </motion.div>
+
+                  {/* Remote Participants */}
+                  {remoteTracks.map((track) => {
+                    const isSpeaking = track.participant.isSpeaking;
+                    return (
+                      <motion.div
+                        key={track.participant.identity + track.source}
+                        animate={{
+                          scale: isSpeaking ? 1.02 : 1,
+                          borderColor: isSpeaking ? '#FACC15' : 'rgba(250, 204, 21, 0)',
+                          boxShadow: isSpeaking ? '0 0 20px rgba(250, 204, 21, 0.4)' : 'none'
+                        }}
+                        className="relative bg-gray-800 rounded-xl overflow-hidden border-2 border-transparent transition-all duration-300"
+                      >
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <VideoTrack
+                            trackRef={track}
+                            className={`w-full h-full ${track.source === Track.Source.ScreenShare ? 'object-contain bg-black' : 'object-cover'}`}
+                            style={track.source === Track.Source.Camera ? { transform: 'scaleX(-1)' } : undefined}
+                          />
+                        </div>
+                        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
+                          <div className="bg-black/70 backdrop-blur-sm px-3 py-1 rounded-lg flex items-center gap-2">
+                            <span className="text-white text-sm font-semibold">{track.participant.identity}</span>
+                            {track.source === Track.Source.ScreenShare ?
+                              <span className="text-xs bg-white text-black px-2 py-0.5 rounded font-bold">{t('screenShare')}</span> :
+                              <span className="text-xs text-gray-300 bg-gray-600 px-2 py-0.5 rounded">{t('remote')}</span>
+                            }
+                          </div>
+                          {!track.participant.isMicrophoneEnabled && track.source !== Track.Source.ScreenShare && <div className="bg-red-600 p-2 rounded-lg"><MicOff className="h-4 w-4 text-white" /></div>}
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </Panel>
 
@@ -1302,21 +1392,86 @@ function ActiveMeetingContent({
         </div>
       </footer>
 
-      {/* Screen Picker Modal (IPC連携) */}
+      {/* Screen Picker Modal (IPC連携) - Improved UI */}
       {showScreenPickerModal && (
-        <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-8">
-          <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[80vh] flex flex-col overflow-hidden shadow-2xl">
-            <div className="p-4 border-b flex justify-between items-center bg-gray-50"><h3 className="font-bold flex items-center gap-2"><Monitor className="text-blue-600" /> {t('selectScreenToShare')}</h3><button onClick={handleScreenPickerCancel}><X className="h-5 w-5" /></button></div>
-            <div className="p-6 overflow-y-auto bg-gray-100 grid grid-cols-2 md:grid-cols-3 gap-4">
-              {availableScreens.map(s => (
-                <button key={s.id} onClick={() => handleScreenSelect(s.id)} className="flex flex-col gap-2 p-2 rounded-xl hover:bg-blue-50 ring-1 ring-gray-200 hover:ring-blue-400 bg-white transition-all">
-                  <div className="relative aspect-video bg-gray-800 rounded overflow-hidden"><img src={s.thumbnail} alt={s.name} className="w-full h-full object-contain" /></div>
-                  <span className="text-sm font-medium text-gray-700 truncate w-full px-1">{s.name}</span>
-                </button>
-              ))}
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-8">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-2xl w-full max-w-5xl max-h-[85vh] flex flex-col overflow-hidden shadow-2xl"
+          >
+            {/* Header */}
+            <div className="p-5 border-b flex justify-between items-center bg-gradient-to-r from-blue-600 to-blue-700">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
+                  <Monitor className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-lg">{t('selectScreenToShare')}</h3>
+                  <p className="text-blue-100 text-sm">{t('selectWindowOrScreen')}</p>
+                </div>
+              </div>
+              <button
+                onClick={handleScreenPickerCancel}
+                className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors"
+              >
+                <X className="h-5 w-5 text-white" />
+              </button>
             </div>
-            <div className="p-4 border-t bg-white flex justify-end"><Button onClick={handleScreenPickerCancel} variant="outline">{t('cancel')}</Button></div>
-          </div>
+
+            {/* Screen Grid */}
+            <div className="flex-1 p-6 overflow-y-auto bg-gray-50">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+                {availableScreens.map(s => (
+                  <motion.button
+                    key={s.id}
+                    onClick={() => handleScreenSelect(s.id)}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="group flex flex-col bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl ring-2 ring-transparent hover:ring-blue-400 transition-all duration-200"
+                  >
+                    {/* Fixed aspect ratio thumbnail container */}
+                    <div className="relative w-full aspect-video bg-gray-900 overflow-hidden">
+                      <img
+                        src={s.thumbnail}
+                        alt={s.name}
+                        className="w-full h-full object-contain"
+                      />
+                      {/* Hover overlay */}
+                      <div className="absolute inset-0 bg-blue-600/0 group-hover:bg-blue-600/20 transition-colors flex items-center justify-center">
+                        <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+                          <Monitor className="h-6 w-6 text-blue-600" />
+                        </div>
+                      </div>
+                    </div>
+                    {/* Name label */}
+                    <div className="p-3 border-t border-gray-100">
+                      <span className="text-sm font-medium text-gray-700 truncate block text-center">{s.name}</span>
+                    </div>
+                  </motion.button>
+                ))}
+              </div>
+
+              {/* Empty state */}
+              {availableScreens.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-16 text-gray-500">
+                  <Monitor className="h-16 w-16 text-gray-300 mb-4" />
+                  <p className="text-lg font-medium">{t('noScreensAvailable')}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t bg-white flex justify-end gap-3">
+              <Button
+                onClick={handleScreenPickerCancel}
+                variant="outline"
+                className="px-6 py-2 rounded-lg"
+              >
+                {t('cancel')}
+              </Button>
+            </div>
+          </motion.div>
         </div>
       )}
 
