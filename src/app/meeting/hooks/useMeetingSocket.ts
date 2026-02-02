@@ -108,7 +108,7 @@ export function useMeetingSocket({ roomId, userName }: UseMeetingSocketProps) {
                     if (msg.type === 'room_connected') {
                         console.log('✅ [useMeetingSocket] Connected to room');
                         setIsConnected(true);
-                        toast.success('チャットサーバーに接続しました');
+                        // Toast notification removed - silent connection
                     } else if (msg.type === 'chat') {
                         const data = msg.data;
                         console.log('💬 [useMeetingSocket] Chat message:', data);
