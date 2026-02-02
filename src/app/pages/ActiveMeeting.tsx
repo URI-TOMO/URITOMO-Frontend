@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import {
   Video, VideoOff, Mic, MicOff, PhoneOff, Users, Settings, Bot,
@@ -113,10 +113,29 @@ function ActiveMeetingContent({
   const [isUriTomoSpeaking, setIsUriTomoSpeaking] = useState(false);
 
   useEffect(() => {
-    // Find Uri-Tomo in participants list
-    const uriTomo = participants.find(p => p.identity?.toLowerCase().includes('uri-tomo'));
-    setIsUriTomoSpeaking(!!uriTomo?.isSpeaking);
-  }, [participants]);
+    if (!room) return;
+
+    const updateSpeakingStatus = () => {
+      // Find Uri-Tomo or Worker in active speakers
+      const speakers = room.activeSpeakers;
+      const isSpeaking = speakers.some(p => {
+        const identity = p.identity.toLowerCase();
+        return identity.includes('uri-tomo') ||
+          identity.includes('worker') ||
+          identity.includes('livekit') ||
+          identity.includes('bot');
+      });
+      setIsUriTomoSpeaking(isSpeaking);
+    };
+
+    room.on(RoomEvent.ActiveSpeakersChanged, updateSpeakingStatus);
+    // Initial check
+    updateSpeakingStatus();
+
+    return () => {
+      room.off(RoomEvent.ActiveSpeakersChanged, updateSpeakingStatus);
+    };
+  }, [room, participants]);
 
   // Device List State
   const [mics, setMics] = useState<MediaDeviceInfo[]>([]);
@@ -138,6 +157,24 @@ function ActiveMeetingContent({
       el.volume = speakerVolume / 100;
     });
   }, [speakerVolume]);
+
+  // Paku-Paku Animation Logic
+  const [isAltImage, setIsAltImage] = useState(false);
+  useEffect(() => {
+    let interval: any;
+    if (isUriTomoSpeaking) {
+      interval = setInterval(() => {
+        setIsAltImage(prev => !prev);
+      }, 100); // 100ms interval for rapid toggling
+    } else {
+      setIsAltImage(false);
+    }
+    return () => clearInterval(interval);
+  }, [isUriTomoSpeaking]);
+
+  const uritomoImg = isUriTomoSpeaking
+    ? (isAltImage ? '/uritomo2.jpg' : '/uritomo1.jpg')
+    : '/uritomo1.jpg';
 
   // Screen Share State
   const [isScreenSharing, setIsScreenSharing] = useState(false);
@@ -709,6 +746,24 @@ function ActiveMeetingContent({
 
       {/* Main Area */}
       <div className="flex-1 overflow-hidden relative min-h-0">
+        {/* Flashing Aura Effect when Uri-Tomo is speaking */}
+        <AnimatePresence>
+          {isUriTomoSpeaking && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{
+                opacity: [0, 0.4, 0],
+              }}
+              transition={{
+                repeat: Infinity,
+                duration: 2,
+                ease: "linear"
+              }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-0 pointer-events-none border-[12px] border-yellow-400/30 shadow-[inset_0_0_150px_rgba(250,204,21,0.2)]"
+            />
+          )}
+        </AnimatePresence>
         {!isSidebarOpen && (
           <motion.button initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} onClick={() => setIsSidebarOpen(true)} className="absolute top-4 right-4 z-10 bg-yellow-400 hover:bg-yellow-500 text-gray-900 px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 font-semibold transition-all">
             <Bot className="h-5 w-5" /><span>{t('openUriTomo')}</span><ChevronLeft className="h-5 w-5" />
@@ -766,7 +821,7 @@ function ActiveMeetingContent({
                       className="relative flex-shrink-0 w-40 h-full bg-gradient-to-br from-yellow-900 to-amber-900 rounded-lg overflow-hidden border-2 border-transparent"
                     >
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <Bot className={`h-8 w-8 text-white ${isUriTomoSpeaking ? 'animate-pulse' : ''}`} />
+                        <img src={uritomoImg} alt="Uri-Tomo" className={`w-full h-full object-cover ${isUriTomoSpeaking ? 'animate-pulse' : ''}`} />
                       </div>
                       <div className="absolute bottom-1 left-1 right-1">
                         <div className="bg-black/70 px-2 py-0.5 rounded text-center">
@@ -835,13 +890,40 @@ function ActiveMeetingContent({
                   >
                     <div className="absolute top-3 right-3 z-10 bg-yellow-400 p-2 rounded-lg shadow-lg"><Pin className="h-4 w-4 text-gray-900" /></div>
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-full h-full bg-gradient-to-br from-yellow-400/20 to-amber-400/20 flex items-center justify-center">
-                        <Bot className={`h-12 w-12 text-white ${isUriTomoSpeaking ? 'animate-pulse' : ''}`} />
+                      <div className="w-full h-full bg-gray-800 flex items-center justify-center overflow-hidden">
+                        <img
+                          src={uritomoImg}
+                          alt="Uri-Tomo"
+                          className={`w-full h-full object-cover opacity-80 transition-all duration-100 scale-105 ${isUriTomoSpeaking ? 'scale-110 opacity-100' : ''}`}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                       </div>
                     </div>
                     <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
                       <div className="bg-black/70 backdrop-blur-sm px-3 py-1 rounded-lg flex items-center gap-2"><span className="text-white text-sm font-semibold">Uri-Tomo</span><span className="text-xs text-yellow-300 bg-yellow-600 px-2 py-0.5 rounded font-semibold">AI</span></div>
-                      <div className={`bg-green-600 p-2 rounded-lg ${isUriTomoSpeaking ? 'animate-pulse' : ''}`}><Mic className="h-4 w-4 text-white" /></div>
+                      <AnimatePresence mode="wait">
+                        {isUriTomoSpeaking ? (
+                          <motion.div
+                            key="mic-on"
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.8 }}
+                            className="bg-green-600 p-2 rounded-lg animate-pulse shadow-lg"
+                          >
+                            <Mic className="h-4 w-4 text-white" />
+                          </motion.div>
+                        ) : (
+                          <motion.div
+                            key="mic-off"
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.8 }}
+                            className="bg-red-600 p-2 rounded-lg shadow-lg"
+                          >
+                            <MicOff className="h-4 w-4 text-white" />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   </motion.div>
 
@@ -917,8 +999,8 @@ function ActiveMeetingContent({
                   <div className="bg-gradient-to-r from-yellow-400 to-amber-400 px-4 py-3 flex-shrink-0">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
-                          <Bot className="h-5 w-5 text-yellow-600" />
+                        <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-white">
+                          <img src={uritomoImg} alt="Uri-Tomo" className="w-full h-full object-cover" />
                         </div>
                         <div>
                           <h3 className="text-white font-bold text-sm">Uri-Tomo</h3>
@@ -1107,7 +1189,9 @@ function ActiveMeetingContent({
                                   >
                                     <div className="flex items-center gap-2 mb-1">
                                       {msg.isAI && (
-                                        <Bot className="h-3 w-3 text-yellow-600" />
+                                        <div className="w-4 h-4 rounded-full overflow-hidden flex items-center justify-center mr-1">
+                                          <img src={uritomoImg} alt="AI" className="w-full h-full object-cover" />
+                                        </div>
                                       )}
                                       <span className="text-xs font-semibold">
                                         {msg.sender}
@@ -1283,8 +1367,8 @@ function ActiveMeetingContent({
                             animate={{ opacity: 1, x: 0 }}
                             className="flex items-center gap-3 p-3 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-200"
                           >
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-amber-400 flex items-center justify-center">
-                              <Bot className="h-5 w-5 text-white" />
+                            <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center bg-white shadow-sm">
+                              <img src={uritomoImg} alt="Uri-Tomo" className="w-full h-full object-cover" />
                             </div>
                             <div className="flex-1">
                               <div className="flex items-center gap-2">

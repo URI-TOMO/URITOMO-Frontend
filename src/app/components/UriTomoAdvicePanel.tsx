@@ -35,7 +35,7 @@ export function UriTomoAdvicePanel() {
     if (!input.trim()) return;
 
     const question = input;
-    
+
     // Uri-Tomoの返答例（実際にはAI APIを使用）
     const responses = [
       {
@@ -114,8 +114,8 @@ export function UriTomoAdvicePanel() {
       {/* Header */}
       <div className="bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 px-4 py-3 border-b-4 border-yellow-500">
         <div className="flex items-center gap-2">
-          <div className="bg-white p-2 rounded-full shadow-lg">
-            <Bot className="h-5 w-5 text-yellow-500" />
+          <div className="bg-white p-2 rounded-full shadow-lg overflow-hidden flex items-center justify-center w-9 h-9">
+            <img src="/uritomo.jpg" alt="Uri-Tomo" className="w-full h-full object-cover" />
           </div>
           <div>
             <h2 className="font-bold text-white text-base flex items-center gap-1">
@@ -153,8 +153,8 @@ export function UriTomoAdvicePanel() {
 
                   {/* Answer */}
                   <div className="flex gap-2">
-                    <div className="bg-white p-1.5 rounded-full h-7 w-7 flex-shrink-0 shadow-md">
-                      <Bot className="h-4 w-4 text-yellow-500" />
+                    <div className="bg-white p-1 rounded-full h-7 w-7 flex-shrink-0 shadow-md overflow-hidden">
+                      <img src="/uritomo.jpg" alt="AI" className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1">
                       <div className="bg-white px-3 py-2.5 rounded-2xl rounded-tl-sm shadow-md">

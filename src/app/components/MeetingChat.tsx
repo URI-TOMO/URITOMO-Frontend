@@ -58,14 +58,12 @@ export function MeetingChat({ messages, currentUser, onSendMessage, onClose }: M
               .substring(0, 2);
 
             return (
-              <div key={msg.id} className={`flex gap-2 ${
-                msg.isUriTomo ? 'bg-gradient-to-r from-orange-50 to-yellow-50 -mx-2 px-2 py-2 rounded-lg' : ''
-              }`}>
-                <Avatar className={`h-7 w-7 flex-shrink-0 ${
-                  msg.isUriTomo ? 'bg-gradient-to-br from-orange-400 to-yellow-400' : 'bg-gray-200'
+              <div key={msg.id} className={`flex gap-2 ${msg.isUriTomo ? 'bg-gradient-to-r from-orange-50 to-yellow-50 -mx-2 px-2 py-2 rounded-lg' : ''
                 }`}>
-                  <AvatarFallback className={`text-xs ${msg.isUriTomo ? 'bg-transparent text-white' : 'bg-transparent text-gray-700'}`}>
-                    {msg.isUriTomo ? <Bot className="h-4 w-4" /> : initials}
+                <Avatar className={`h-7 w-7 flex-shrink-0 ${msg.isUriTomo ? 'bg-gradient-to-br from-orange-400 to-yellow-400' : 'bg-gray-200'
+                  }`}>
+                  <AvatarFallback className={`text-xs ${msg.isUriTomo ? 'bg-transparent text-white' : 'bg-transparent text-gray-700'} overflow-hidden`}>
+                    {msg.isUriTomo ? <img src="/uritomo.jpg" alt="AI" className="w-full h-full object-cover" /> : initials}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">

@@ -53,7 +53,7 @@ export function UriTomoPanel({ translationLog, realtimeTranslation, onClose }: U
     if (!input.trim()) return;
 
     const question = input;
-    
+
     // Uri-Tomoの返答例（実際にはAI APIを使用）
     const responses = [
       {
@@ -133,8 +133,8 @@ export function UriTomoPanel({ translationLog, realtimeTranslation, onClose }: U
       <div className="bg-gradient-to-r from-orange-400 via-yellow-400 to-green-400 px-4 py-3 border-b-4 border-orange-500">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <div className="bg-white p-2 rounded-full shadow-lg">
-              <Bot className="h-6 w-6 text-orange-500" />
+            <div className="bg-white p-2 rounded-full shadow-lg overflow-hidden flex items-center justify-center w-10 h-10">
+              <img src="/uritomo.jpg" alt="Uri-Tomo" className="w-full h-full object-cover" />
             </div>
             <div>
               <h2 className="font-bold text-white text-lg flex items-center gap-1">
@@ -158,11 +158,10 @@ export function UriTomoPanel({ translationLog, realtimeTranslation, onClose }: U
         <div className="flex gap-2">
           <button
             onClick={() => setActiveTab('translation')}
-            className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
-              activeTab === 'translation'
+            className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === 'translation'
                 ? 'bg-white text-orange-600 shadow-md'
                 : 'bg-white/30 text-white hover:bg-white/40'
-            }`}
+              }`}
           >
             🌐 翻訳
           </button>
@@ -176,22 +175,20 @@ export function UriTomoPanel({ translationLog, realtimeTranslation, onClose }: U
           <div className="flex gap-2">
             <button
               onClick={() => setTranslationSubTab('log')}
-              className={`flex-1 px-3 py-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
-                translationSubTab === 'log'
+              className={`flex-1 px-3 py-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${translationSubTab === 'log'
                   ? 'bg-gradient-to-r from-orange-400 to-yellow-400 text-white shadow-md'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
+                }`}
             >
               <FileText className="h-3.5 w-3.5" />
               翻訳ログ
             </button>
             <button
               onClick={() => setTranslationSubTab('summary')}
-              className={`flex-1 px-3 py-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
-                translationSubTab === 'summary'
+              className={`flex-1 px-3 py-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${translationSubTab === 'summary'
                   ? 'bg-gradient-to-r from-orange-400 to-yellow-400 text-white shadow-md'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
+                }`}
             >
               <BarChart3 className="h-3.5 w-3.5" />
               サマリー
@@ -290,7 +287,7 @@ export function UriTomoPanel({ translationLog, realtimeTranslation, onClose }: U
                       <li>KPIの確認と調整</li>
                     </ul>
                   </div>
-                  
+
                   <div>
                     <p className="font-semibold text-gray-900 mb-1">✅ 決定事項</p>
                     <ul className="list-disc list-inside space-y-1 pl-2">
