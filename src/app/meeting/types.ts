@@ -14,14 +14,15 @@ export interface ChatMessage {
     id: string;
     room_id: string;
     seq: number;
-    sender_member_id: string;
+    sender_member_id: string | null;
     display_name: string;
     text: string;
-    lang: string;
+    lang?: string | null;
     created_at: string;
     // UI extended properties
     isMe?: boolean;
-    translated?: string;
+    translated_text?: string | null;
+    translated_lang?: string | null;
 }
 
 export interface TranslationEvent {
