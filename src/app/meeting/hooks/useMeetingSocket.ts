@@ -60,8 +60,9 @@ export function useMeetingSocket({ roomId, userName }: UseMeetingSocketProps) {
                     sender_member_id: msg.sender_member_id,
                     display_name: msg.display_name,
                     text: msg.text,
-                    lang: msg.lang || undefined,
-                    translated: msg.translated_text || undefined,
+                    lang: msg.lang ?? null,
+                    translated_text: msg.translated_text ?? null,
+                    translated_lang: msg.translated_lang ?? null,
                     created_at: msg.created_at,
                     // Check if sender_member_id contains current user ID
                     isMe: msg.display_name === userName
@@ -120,8 +121,9 @@ export function useMeetingSocket({ roomId, userName }: UseMeetingSocketProps) {
                             sender_member_id: data.sender_member_id,
                             display_name: data.display_name,
                             text: data.text,
-                            lang: data.lang,
-                            translated: data.translated_text,
+                            lang: data.lang ?? null,
+                            translated_text: data.translated_text ?? null,
+                            translated_lang: data.translated_lang ?? null,
                             created_at: data.created_at,
                             // Use display_name comparison for isMe (backend sends the sender's display name)
                             isMe: data.display_name === userName
@@ -139,14 +141,19 @@ export function useMeetingSocket({ roomId, userName }: UseMeetingSocketProps) {
                     } else if (msg.type === 'translation') {
                         const data = msg.data;
                         console.log('🌐 [useMeetingSocket] Translation:', data);
+                        const originalText = data?.original_text || data?.Original || data?.original || '';
+                        const translatedText = data?.translated_text || data?.translated || '';
+                        const translatedLang = data?.translated_lang || data?.target_lang || null;
+                        if (!originalText || !translatedText) return;
                         // Handle translation logic...
                         setMessages(prev => {
                             const newMessages = [...prev];
                             for (let i = newMessages.length - 1; i >= 0; i--) {
-                                if (newMessages[i].text === data.Original && !newMessages[i].translated) {
+                                if (newMessages[i].text === originalText && !newMessages[i].translated_text) {
                                     newMessages[i] = {
                                         ...newMessages[i],
-                                        translated: data.translated
+                                        translated_text: translatedText,
+                                        translated_lang: translatedLang
                                     };
                                     return newMessages;
                                 }

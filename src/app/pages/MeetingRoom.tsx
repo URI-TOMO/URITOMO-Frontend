@@ -155,6 +155,15 @@ export function MeetingRoom() {
     return '🌐';
   };
 
+  const getLangBadge = (lang?: string | null): string | null => {
+    if (!lang) return null;
+    const normalized = lang.toLowerCase();
+    if (normalized.startsWith('ko') || normalized.includes('korean')) return 'KO';
+    if (normalized.startsWith('ja') || normalized.startsWith('jp') || normalized.includes('japanese')) return 'JA';
+    if (normalized.startsWith('en') || normalized.includes('english')) return 'EN';
+    return lang.toUpperCase().slice(0, 2);
+  };
+
   // Handle Add Member
   const handleAddMember = async (email: string) => {
     if (!email.trim()) {
@@ -582,39 +591,59 @@ export function MeetingRoom() {
                   </div>
                 </div>
               ) : (
-                messages.map((message) => (
-                  <motion.div
-                    key={message.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className={`flex items-start gap-2 ${message.isMe ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div className={`max-w-2xl ${message.isMe ? 'text-right' : 'text-left'}`}>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-semibold text-gray-700">
-                          {message.display_name}
-                        </span>
-                        <span className="text-xs text-gray-400">
-                          {new Date(message.created_at).toLocaleTimeString('ja-JP', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                      </div>
-                      <div className="relative inline-block">
-                        <div
-                          className={`px-4 py-2 rounded-2xl ${message.isMe
-                            ? 'bg-gradient-to-r from-yellow-400 to-amber-400 text-white'
-                            : 'bg-white border border-gray-200 text-gray-900'
-                            }`}
-                        >
-                          <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+                messages.map((message) => {
+                  const translatedText = typeof message.translated_text === 'string'
+                    ? message.translated_text.trim()
+                    : '';
+                  const shouldShowTranslation = !message.isMe && translatedText !== '' && translatedText !== message.text;
+                  const translationBadge = getLangBadge(message.translated_lang);
+
+                  return (
+                    <motion.div
+                      key={message.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className={`flex items-start gap-2 ${message.isMe ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div className={`max-w-2xl ${message.isMe ? 'text-right' : 'text-left'}`}>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm font-semibold text-gray-700">
+                            {message.display_name}
+                          </span>
+                          <span className="text-xs text-gray-400">
+                            {new Date(message.created_at).toLocaleTimeString('ja-JP', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
                         </div>
+                        <div className="relative inline-block">
+                          <div
+                            className={`px-4 py-2 rounded-2xl ${message.isMe
+                              ? 'bg-gradient-to-r from-yellow-400 to-amber-400 text-white'
+                              : 'bg-white border border-gray-200 text-gray-900'
+                              }`}
+                          >
+                            <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+                          </div>
+                        </div>
+                        {shouldShowTranslation && (
+                          <div className="mt-1">
+                            {translationBadge && (
+                              <span className="inline-flex items-center rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-semibold text-gray-600">
+                                {translationBadge}
+                              </span>
+                            )}
+                            <div className="mt-1 inline-block rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">
+                              <p className="text-xs text-gray-700 whitespace-pre-wrap">{translatedText}</p>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  </motion.div>
-                ))
+                    </motion.div>
+                  );
+                })
               )
             )}
             <div ref={chatEndRef} />
