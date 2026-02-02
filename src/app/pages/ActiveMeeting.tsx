@@ -999,7 +999,7 @@ function ActiveMeetingContent({
                             </div>
                           ) : (
                             <div className="space-y-4">
-                              {translationLogs.map((log, index) => (
+                              {[...translationLogs].reverse().map((log, index) => (
                                 <motion.div
                                   key={log.id}
                                   initial={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -1010,7 +1010,7 @@ function ActiveMeetingContent({
                                     stiffness: 300,
                                     damping: 20
                                   }}
-                                  className={`bg-white rounded-xl p-4 shadow-md border-2 transition-all ${index === translationLogs.length - 1
+                                  className={`bg-white rounded-xl p-4 shadow-md border-2 transition-all ${index === 0
                                     ? 'border-yellow-400 ring-2 ring-yellow-200'
                                     : 'border-gray-200 hover:border-yellow-300'
                                     }`}
@@ -1055,7 +1055,7 @@ function ActiveMeetingContent({
                                         {log.originalLang === 'ja' ? '🇰🇷 ' + t('koreanTrans') : '🇯🇵 ' + t('japaneseTrans')}
                                       </span>
                                       <span className="text-xs text-yellow-700">{t('translation')}</span>
-                                      {index === translationLogs.length - 1 && (
+                                      {index === 0 && (
                                         <span className="text-xs font-bold text-red-600 bg-red-100 px-2 py-1 rounded ml-auto animate-pulse">
                                           {t('live')}
                                         </span>
