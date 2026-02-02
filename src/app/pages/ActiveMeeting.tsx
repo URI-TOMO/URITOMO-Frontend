@@ -1339,7 +1339,7 @@ function ActiveMeetingContent({
                       <div className="h-full overflow-y-auto p-4">
                         <div className="mb-4">
                           <h4 className="text-sm font-bold text-gray-900 mb-1">
-                            {t('participantsCount')} ({visibleParticipants.length + 1})
+                            {t('participantsCount')} ({visibleParticipants.length})
                           </h4>
                           <p className="text-xs text-gray-500">
                             {visibleParticipants.filter(p => p.isMicrophoneEnabled).length + (isMicOn ? 1 : 0)}{t('speaking')}
@@ -1698,7 +1698,7 @@ function ActiveMeetingContent({
                     <div className="bg-white rounded-lg p-3 text-center border border-gray-200">
                       <Users className="h-4 w-4 text-gray-600 mx-auto mb-1" />
                       <p className="text-xs text-gray-500">{t('participantsCount')}</p>
-                      <p className="text-lg font-bold text-gray-900">{visibleParticipants.length + 1}</p>
+                      <p className="text-lg font-bold text-gray-900">{visibleParticipants.length}</p>
                     </div>
                     <div className="bg-white rounded-lg p-3 text-center border border-gray-200">
                       <Languages className="h-4 w-4 text-yellow-600 mx-auto mb-1" />
