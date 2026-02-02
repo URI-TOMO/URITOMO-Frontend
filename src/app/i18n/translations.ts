@@ -159,7 +159,7 @@ export const translations: Record<string, Record<Language, string>> = {
     contactName: { ja: '連絡先名', ko: '연락처 이름', en: 'Contact Name' },
     nickname: { ja: 'ニックネーム', ko: '닉네임', en: 'Nickname' },
     deleteContact: { ja: '連絡先を削除しますか？', ko: '연락처를 삭제하시겠습니까?', en: 'Delete Contact?' },
-    deleteContactDesc: { ja: 'を連絡先から削除します。この操作は取り消せません。', ko: '을(를) 연락처에서 삭제합니다. 이 작업은 취소할 수 없습니다.', en: 'will be removed from contacts. This action cannot be undone.' },
+    deleteContactDesc: { ja: 'この連絡先を削除します。この操作は取り消せません。', ko: '이 연락처를 삭제합니다. 이 작업은 취소할 수 없습니다.', en: 'This contact will be removed. This action cannot be undone.' },
     enterEmail: { ja: 'メールアドレスを入力してください', ko: '이메일 주소를 입력해주세요', en: 'Please enter email address' },
     validEmail: { ja: '有効なメールアドレスを入力してください', ko: '유효한 이메일 주소를 입력해주세요', en: 'Please enter a valid email address' },
     checking: { ja: '確認中...', ko: '확인 중...', en: 'Checking...' },

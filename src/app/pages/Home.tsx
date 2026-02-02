@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Users, UserPlus, Edit3, Trash2, MessageCircle, MoreVertical, User, Bot, Settings, Plus, LogOut, Mic, Video, Monitor, Languages, Image as ImageIcon, ChevronRight, Mail, X, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '../components/ui/button';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { toast } from 'sonner';
@@ -697,32 +696,102 @@ export function Home() {
         </div>
       )}
 
-      {/* Delete Confirmation Alert */}
-      <AlertDialog open={showDeleteAlert} onOpenChange={setShowDeleteAlert}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('deleteContact')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {contactToDelete?.name} {t('deleteContactDesc')}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (contactToDelete) {
-                  handleDeleteContact(contactToDelete);
-                }
-                setShowDeleteAlert(false);
-                setContactToDelete(null);
-              }}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              {t('delete')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Delete Confirmation Modal */}
+      {showDeleteAlert && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setShowDeleteAlert(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header with Warning */}
+            <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-8 text-center relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent" />
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.2, type: "spring", damping: 15 }}
+                className="relative z-10"
+              >
+                <div className="w-20 h-20 mx-auto mb-4 bg-white rounded-full flex items-center justify-center shadow-lg">
+                  <Trash2 className="h-10 w-10 text-red-600" />
+                </div>
+                <h2 className="text-white font-bold text-2xl mb-2">
+                  {t('deleteContact')}
+                </h2>
+                <p className="text-red-100 text-sm">
+                  {contactToDelete?.name}
+                </p>
+              </motion.div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              <div className="space-y-4">
+                {/* Contact Info */}
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center">
+                      <User className="h-6 w-6 text-yellow-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-gray-900 text-base">{contactToDelete?.name}</h3>
+                      <p className="text-sm text-gray-500">{contactToDelete?.email}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Warning Message */}
+                <div className="bg-amber-50 border-l-4 border-amber-400 rounded-lg p-4">
+                  <div className="flex gap-3">
+                    <div className="w-5 h-5 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-amber-600 text-sm font-bold">!</span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-amber-900 mb-1">
+                        {t('deleteContactDesc')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 flex gap-3">
+              <Button
+                onClick={() => {
+                  setShowDeleteAlert(false);
+                  setContactToDelete(null);
+                }}
+                className="flex-1 px-6 py-3 bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 rounded-xl font-semibold transition-all"
+              >
+                {t('cancel')}
+              </Button>
+              <Button
+                onClick={() => {
+                  if (contactToDelete) {
+                    handleDeleteContact(contactToDelete);
+                  }
+                  setShowDeleteAlert(false);
+                  setContactToDelete(null);
+                }}
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+              >
+                <Trash2 className="h-4 w-4 mr-2 inline" />
+                {t('delete')}
+              </Button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
 
       {/* Profile Settings Modal */}
       <ProfileSettingsModal
