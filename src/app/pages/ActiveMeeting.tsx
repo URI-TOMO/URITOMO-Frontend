@@ -1341,9 +1341,6 @@ function ActiveMeetingContent({
                           <h4 className="text-sm font-bold text-gray-900 mb-1">
                             {t('participantsCount')} ({visibleParticipants.length})
                           </h4>
-                          <p className="text-xs text-gray-500">
-                            {visibleParticipants.filter(p => p.isMicrophoneEnabled).length + (isMicOn ? 1 : 0)}{t('speaking')}
-                          </p>
                         </div>
 
                         <div className="space-y-2">
