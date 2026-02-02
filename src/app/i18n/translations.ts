@@ -132,6 +132,23 @@ export const translations: Record<string, Record<Language, string>> = {
     termDescriptionDesc: { ja: '専門用語を自動で解説します', ko: '전문 용어를 자동으로 설명합니다', en: 'Auto Terminology Explanation' },
     autoRecordDesc: { ja: '開始時に自動録画', ko: '시작 시 자동 녹화', en: 'Auto record on start' },
     notificationSoundDesc: { ja: '入退室を通知', ko: '입퇴실 알림', en: 'Notify Join/Leave' },
+
+    // Summary Loading
+    aiAnalyzing: { ja: 'Uri-Tomo AIが会議を分析しています', ko: 'Uri-Tomo AI가 회의를 분석하고 있습니다', en: 'Uri-Tomo AI is analyzing the meeting' },
+    generatingSummary: { ja: 'AI基盤の会議要約を生成中です...', ko: 'AI 기반 회의 요약을 생성 중입니다...', en: 'Generating AI-based meeting summary...' },
+    generationProgress: { ja: '生成進行率', ko: '생성 진행률', en: 'Generation Progress' },
+    processing: { ja: '処理中...', ko: '처리 중...', en: 'Processing...' },
+    analyzingKeyPoints: { ja: '主要内容', ko: '주요 내용', en: 'Key Points' },
+    analyzing: { ja: '分析中', ko: '분석 중', en: 'Analyzing' },
+    extractingActions: { ja: 'アクションアイテム', ko: '액션 아이템', en: 'Action Items' },
+    extracting: { ja: '抽出中', ko: '추출 중', en: 'Extracting' },
+    organizingDecisions: { ja: '決定事項', ko: '결정 사항', en: 'Decisions' },
+    organizing: { ja: '整理中', ko: '정리 중', en: 'Organizing' },
+    meetingInfo: { ja: '会議情報', ko: '회의 정보', en: 'Meeting Info' },
+    meetingDuration: { ja: '会議時間', ko: '회의 시간', en: 'Meeting Duration' },
+    numParticipants: { ja: '参加者数', ko: '참가자 수', en: 'Participants' },
+    numTranslations: { ja: '翻訳回数', ko: '번역 횟수', en: 'Translations' },
+    pleaseWait: { ja: 'お待ちください。Uri-Tomo AIが会議内容を総合し、要約文書を作成しています。', ko: '잠시만 기다려 주세요. Uri-Tomo AI가 회의 내용을 종합하여 요약 문서를 작성하고 있습니다.', en: 'Please wait. Uri-Tomo AI is synthesizing meeting content to create a summary document.' },
     // Home
     contacts: { ja: '連絡先', ko: '연락처', en: 'Contacts' },
     add: { ja: '追加', ko: '추가', en: 'Add' },

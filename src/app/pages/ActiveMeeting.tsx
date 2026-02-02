@@ -6,13 +6,14 @@ import {
   Video, VideoOff, Mic, MicOff, PhoneOff, Users, Settings, Bot,
   MessageSquare, Languages, Pin, ChevronRight, ChevronLeft,
   MonitorUp, Paperclip, Smile, AlertTriangle, Clock, Send, Monitor, X,
-  User as UserIcon, Volume2, VolumeX, Volume1
+  User as UserIcon, Volume2, VolumeX, Volume1, Sparkles, FileText
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { ProfileSettingsModal, SystemSettingsModal } from '../components/SettingsModals';
 import { toast } from 'sonner';
 import { meetingApi } from '../api/meeting';
 import { roomApi } from '../api/room';
+import { getMockSummaryData } from '../utils/mockSummary';
 import { MeetingSocket } from '../meeting/websocket/client';
 // LiveKit imports
 import {
@@ -645,6 +646,9 @@ function ActiveMeetingContent({
   const confirmEndMeeting = () => {
     const endTime = new Date();
 
+    // Get mock summary data based on system language
+    const summaryData = getMockSummaryData(systemLanguage);
+
     // 会議の包括的なレコードを作成
     const meetingRecord = {
       id: Date.now().toString(),
@@ -671,33 +675,16 @@ function ActiveMeetingContent({
         timestamp: msg.timestamp.toISOString(),
         isAI: msg.isAI,
       })),
-      summary: {
-        keyPoints: [
-          'プロジェクトの進捗状況について全体的な共有が行われました',
-          '次期スプリントの計画とマイルストーンが確認されました',
-          '日韓チーム間のコラボレーションが順調に進んでいることが報告されました',
-          '技術的な課題について建設的な議論が行われました',
-        ],
-        actionItems: [
-          '次回ミーティングまでに各チームがタスクを完了する（' + (participants[0]?.name || '担当者A') + '）',
-          'KPI レポートを作成し共有する（' + (participants[1]?.name || '担当者B') + '）',
-          'デザインレビューを実施する（' + currentUser.name + '）',
-          '技術ドキュメントを更新する（Uri-Tomo AI）',
-        ],
-        decisions: [
-          '次期スプリントのリリース日を2週間後に設定',
-          '隔週で日韓合同ミーティングを継続実施',
-          'Uri-TomoのAI翻訳機能を全プロジェクトに展開',
-        ],
-      },
+      summary: summaryData,
     };
 
     // localStorageへ保存
     const savedMeetings = JSON.parse(localStorage.getItem('meetings') || '[]');
     const updatedMeetings = [...savedMeetings, meetingRecord];
     localStorage.setItem('meetings', JSON.stringify(updatedMeetings));
-    // 実際の議事録保存処理などがここに入ります
-    navigate(`/minutes/${meetingRecord.id}`);
+
+    // Navigate to summary loading page (10 second animation before showing minutes)
+    navigate(`/summary-loading/${meetingRecord.id}`);
   };
 
   // --- Initial Data ---
@@ -1781,7 +1768,6 @@ function ActiveMeetingContent({
         onNameChange={setEditedUserName}
         onAvatarChange={setEditedUserAvatar}
         onAvatarTypeChange={setEditedAvatarType}
-        onAvatarImageUpload={(e) => { }}
         onSave={() => setShowProfileSettings(false)}
       />
     </div>
