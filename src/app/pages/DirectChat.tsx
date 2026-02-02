@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Home,
-  Users,
+  User,
   Send,
   ArrowLeft,
   Bot,
@@ -13,13 +13,16 @@ import {
   Mail,
   Pin,
   Smile,
-  Paperclip
+  Paperclip,
+  Search
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { ProfileSettingsModal, SystemSettingsModal } from '../components/SettingsModals';
 import { toast } from 'sonner';
 import { useTranslation } from '../hooks/useTranslation';
+import { dmApi } from '../api/dm';
+import { useDmSocket } from '../dm/hooks/useDmSocket';
 
 interface ChatMessage {
   id: string;
@@ -64,6 +67,10 @@ export function DirectChat() {
   const [editedUserAvatar, setEditedUserAvatar] = useState('');
   const [editedAvatarType, setEditedAvatarType] = useState<'emoji' | 'image' | 'none'>('none');
   const { t, language: systemLanguage, setSystemLanguage } = useTranslation();
+
+  // DM WebSocket State
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [myUserId, setMyUserId] = useState<string | null>(null);
 
   // Listen for sidebar button clicks
   useEffect(() => {
@@ -140,13 +147,10 @@ export function DirectChat() {
       setUserEmail(savedUser);
     }
 
-    if (savedLanguage) {
-      // setSystemLanguage(savedLanguage as 'ja' | 'ko' | 'en'); // Handled by useTranslation
-    }
-
-    // Load chat messages for this contact
+    // Load chat messages for this contact from local storage initially
+    const storageKey = `uri-tomo-direct-chat-${contactId}`;
     const savedMessages = JSON.parse(
-      localStorage.getItem(`uri-tomo-direct-chat-${contactId}`) || '[]'
+      localStorage.getItem(storageKey) || '[]'
     );
 
     setMessages(
@@ -157,6 +161,52 @@ export function DirectChat() {
     );
   }, [contactId]);
 
+  // Get current user ID for DM
+  useEffect(() => {
+    try {
+      const profileStr = localStorage.getItem('uri-tomo-user-profile');
+      const userIdFromStorage = localStorage.getItem('uri-tomo-user-id');
+      if (profileStr) {
+        const profile = JSON.parse(profileStr);
+        setMyUserId(profile.id || userIdFromStorage);
+      } else if (userIdFromStorage) {
+        setMyUserId(userIdFromStorage);
+      }
+    } catch (e) { console.error('Error getting userId:', e); }
+  }, []);
+
+  // Start DM thread
+  useEffect(() => {
+    if (contactId && myUserId) {
+      dmApi.startDm(contactId).then(thread => {
+        setThreadId(thread.id);
+      }).catch(e => {
+        console.error('Failed to start DM:', e);
+      });
+    }
+  }, [contactId, myUserId]);
+
+  // Use DM Socket
+  const { messages: dmMessages, sendMessage: sendDmMessage, isConnected } = useDmSocket({
+    threadId: threadId || '',
+    currentUserId: myUserId
+  });
+
+  // Sync DM messages to local state
+  useEffect(() => {
+    if (dmMessages.length > 0) {
+      const mappedMessages: ChatMessage[] = dmMessages.map(m => ({
+        id: m.id,
+        sender: m.display_name,
+        message: m.text,
+        timestamp: new Date(m.created_at),
+        isMe: m.isMe,
+        isAI: false
+      }));
+      setMessages(mappedMessages);
+    }
+  }, [dmMessages]);
+
   useEffect(() => {
     // Auto-scroll to bottom when new messages arrive
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -165,6 +215,14 @@ export function DirectChat() {
   const handleSendMessage = () => {
     if (!inputMessage.trim()) return;
 
+    // If DM WebSocket is connected, send via API
+    if (isConnected && threadId) {
+      sendDmMessage(inputMessage);
+      setInputMessage('');
+      return;
+    }
+
+    // Fallback to localStorage
     const newMessage: ChatMessage = {
       id: Date.now().toString(),
       sender: userName,
@@ -176,11 +234,8 @@ export function DirectChat() {
     const updatedMessages = [...messages, newMessage];
     setMessages(updatedMessages);
 
-    // Save to localStorage
-    localStorage.setItem(
-      `uri-tomo-direct-chat-${contactId}`,
-      JSON.stringify(updatedMessages)
-    );
+    const storageKey = `uri-tomo-direct-chat-${contactId}`;
+    localStorage.setItem(storageKey, JSON.stringify(updatedMessages));
 
     setInputMessage('');
   };
@@ -218,6 +273,13 @@ export function DirectChat() {
   };
 
   const handleStickerSelect = (sticker: string) => {
+    // Send sticker via WebSocket if connected
+    if (isConnected && threadId) {
+      sendDmMessage(sticker);
+      setShowStickerPicker(false);
+      return;
+    }
+
     const stickerMessage: ChatMessage = {
       id: Date.now().toString(),
       sender: userName,
@@ -262,8 +324,8 @@ export function DirectChat() {
               <ArrowLeft className="h-5 w-5 text-gray-600" />
             </button>
             <div className="relative">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center text-white font-bold text-xl">
-                {contact.name.charAt(0)}
+              <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-xl">
+                <User className="h-6 w-6" />
               </div>
               <div
                 className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${contact.status === 'online' ? 'bg-green-500' : 'bg-gray-400'
@@ -272,26 +334,18 @@ export function DirectChat() {
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900">{contact.name}</h1>
-              <p className="text-sm text-gray-500 flex items-center gap-1">
-                <Mail className="h-3 w-3" />
-                {contact.email}
-              </p>
+              <p className="text-sm text-gray-500">{contact.email}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              className="border-2 border-yellow-300 hover:bg-yellow-50"
-            >
-              <Phone className="h-5 w-5" />
-            </Button>
-            <Button
-              variant="outline"
-              className="border-2 border-yellow-300 hover:bg-yellow-50"
-            >
-              <Video className="h-5 w-5" />
-            </Button>
+          <div className="flex items-center">
+            <div className="relative w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="キーワード検索"
+                className="pl-9 h-9 text-sm border-gray-200"
+              />
+            </div>
           </div>
         </div>
       </header>
@@ -304,36 +358,26 @@ export function DirectChat() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2 }}
-            className={`flex ${message.isMe ? 'justify-end' : 'justify-start'}`}
+            className={`flex ${message.isMe ? 'justify-end' : 'justify-start'
+              }`}
           >
-            <div className={`max-w-2xl ${message.isMe ? 'text-right' : 'text-left'}`}>
-              <div className="flex items-center gap-2 mb-1">
-                {message.isAI && (
-                  <div className="flex items-center gap-1">
-                    <Pin className="h-3 w-3 text-yellow-600" />
-                    <Bot className="h-3 w-3 text-yellow-600" />
-                  </div>
-                )}
-                <span className={`text-sm font-semibold ${message.isAI ? 'text-yellow-700' : 'text-gray-700'
-                  }`}>
-                  {message.sender}
-                </span>
-                <span className="text-xs text-gray-400">
-                  {message.timestamp.toLocaleTimeString('ja-JP', {
+            <div className={`flex flex-col ${message.isMe ? 'items-end' : 'items-start'} max-w-[70%]`}>
+              <div className="text-[10px] text-gray-500 mb-1 flex items-center gap-2">
+                {!message.isMe && <span className="font-bold">{message.sender}</span>}
+                <span>
+                  {message.timestamp.toLocaleTimeString([], {
                     hour: '2-digit',
                     minute: '2-digit',
                   })}
                 </span>
               </div>
               <div
-                className={`inline-block px-4 py-2 rounded-2xl ${message.isAI
-                  ? 'bg-gradient-to-r from-yellow-100 to-amber-100 border-2 border-yellow-300 text-gray-900'
-                  : message.isMe
-                    ? 'bg-gradient-to-r from-yellow-400 to-amber-400 text-white'
+                className={`px-4 py-2 rounded-lg text-sm whitespace-pre-wrap ${message.isMe
+                    ? 'bg-blue-500 text-white'
                     : 'bg-white border border-gray-200 text-gray-900'
                   }`}
               >
-                <p className="text-sm whitespace-pre-wrap">{message.message}</p>
+                {message.message}
               </div>
             </div>
           </motion.div>
@@ -377,51 +421,42 @@ export function DirectChat() {
           </motion.div>
         )}
 
-        <div className="flex items-end gap-3">
-          <div className="flex-1">
-            <div className="relative">
-              <Input
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder={`${t('sendMessageTo')}${contact.name}`}
-                className="w-full pr-12 py-6 text-base border-2 border-gray-200 focus:border-yellow-400 focus:ring-yellow-400 rounded-xl"
-              />
-              <button
-                onClick={handleSendMessage}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
-              >
-                <Send className="h-6 w-6" />
-              </button>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              className="border-2 border-yellow-300 hover:bg-yellow-50"
-              onClick={handleFileAttach}
-              title={t('attachFile')}
-            >
-              <Paperclip className="h-5 w-5" />
-            </Button>
-            <Button
-              variant="outline"
-              className={`border-2 transition-colors ${showStickerPicker
-                ? 'bg-yellow-200 border-yellow-400'
-                : 'border-yellow-300 hover:bg-yellow-50'
-                }`}
-              onClick={() => setShowStickerPicker(!showStickerPicker)}
-              title={t('selectSticker')}
-            >
-              <Smile className="h-5 w-5" />
-            </Button>
-          </div>
+        <div className="flex items-center gap-3">
+          <button
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+            onClick={handleFileAttach}
+            title={t('attachFile')}
+          >
+            <Paperclip className="h-5 w-5" />
+          </button>
+          <button
+            className={`transition-colors ${showStickerPicker ? 'text-yellow-500' : 'text-gray-400 hover:text-gray-600'}`}
+            onClick={() => setShowStickerPicker(!showStickerPicker)}
+            title={t('selectSticker')}
+          >
+            <Smile className="h-5 w-5" />
+          </button>
+
+          <Input
+            value={inputMessage}
+            onChange={(e) => setInputMessage(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder={t('typeMessage') || `${t('sendMessageTo')}${contact.name}`}
+            className="flex-1 py-2 text-base border-gray-200 focus:border-yellow-400 focus:ring-yellow-400 rounded-md"
+          />
+          <button
+            onClick={handleSendMessage}
+            disabled={!inputMessage.trim()}
+            className="p-2 bg-gray-400 hover:bg-gray-500 text-white rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Send className="h-5 w-5" />
+          </button>
         </div>
 
         {/* Info Message */}
-        <div className="mt-3 px-2">
-          <p className="text-xs text-gray-500 flex items-center gap-1">
-            <Bot className="h-3 w-3 text-yellow-600" />
+        <div className="mt-2 text-left">
+          <p className="text-[10px] text-gray-400 flex items-center gap-1">
+            <Bot className="h-3 w-3 text-yellow-500" />
             {t('aiTranslateFeature')}
           </p>
         </div>

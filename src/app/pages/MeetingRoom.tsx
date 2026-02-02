@@ -28,8 +28,7 @@ import {
   Paperclip,
   PanelRightClose,
   PanelRightOpen,
-  X,
-  Languages
+  X
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -89,7 +88,22 @@ export function MeetingRoom() {
   const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   // const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [userName, setUserName] = useState('Me');
+
+  // Initialize userName from localStorage
+  const getInitialUserName = () => {
+    try {
+      const profile = localStorage.getItem('uri-tomo-user-profile');
+      if (profile) {
+        const parsed = JSON.parse(profile);
+        return parsed.name || 'ユーザー';
+      }
+    } catch (e) {
+      console.error('Failed to load user profile:', e);
+    }
+    return 'ユーザー';
+  };
+
+  const [userName, setUserName] = useState(getInitialUserName);
   const [userEmail, setUserEmail] = useState('');
 
   // WebSocket Hook (must be after userName is defined)
@@ -358,11 +372,6 @@ export function MeetingRoom() {
     setShowStickerPicker(false);
   };
 
-  const handleTranslateMessage = (messageId: string) => {
-    // Mock translation removed. Real-time translation is handled by WebSocket.
-    toast.info(t('aiAutoTranslateEnabled'));
-  };
-
   const handleRoomChange = (roomId: string) => {
     navigate(`/meeting/${roomId}`);
   };
@@ -579,19 +588,8 @@ export function MeetingRoom() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.2 }}
-                    className={`flex items-start gap-2 ${message.isMe ? 'justify-end' : 'justify-start'} group`}
+                    className={`flex items-start gap-2 ${message.isMe ? 'justify-end' : 'justify-start'}`}
                   >
-                    {/* Translate button - show on left for incoming messages */}
-                    {!message.isMe && (
-                      <button
-                        onClick={() => handleTranslateMessage(message.id)}
-                        className="mt-7 p-1.5 rounded-full bg-white border border-gray-200 hover:bg-yellow-50 hover:border-yellow-300 transition-all opacity-0 group-hover:opacity-100 flex-shrink-0"
-                        title={t('translation')}
-                      >
-                        <Languages className="h-3.5 w-3.5 text-yellow-600" />
-                      </button>
-                    )}
-
                     <div className={`max-w-2xl ${message.isMe ? 'text-right' : 'text-left'}`}>
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-sm font-semibold text-gray-700">
@@ -612,30 +610,9 @@ export function MeetingRoom() {
                             }`}
                         >
                           <p className="text-sm whitespace-pre-wrap">{message.text}</p>
-                          {/* message.showTranslation was removed from type but we can infer or use state if needed. 
-                              For now, always show translated if available. 
-                          */}
-                          {message.translated && (
-                            <div className={`mt-2 pt-2 border-t ${message.isMe ? 'border-yellow-300' : 'border-gray-300'}`}>
-                              <p className="text-xs opacity-75 whitespace-pre-wrap">
-                                {message.translated}
-                              </p>
-                            </div>
-                          )}
                         </div>
                       </div>
                     </div>
-
-                    {/* Translate button - show on right for outgoing messages */}
-                    {message.isMe && (
-                      <button
-                        onClick={() => handleTranslateMessage(message.id)}
-                        className="mt-7 p-1.5 rounded-full bg-white border border-gray-200 hover:bg-yellow-50 hover:border-yellow-300 transition-all opacity-0 group-hover:opacity-100 flex-shrink-0"
-                        title={t('translation')}
-                      >
-                        <Languages className="h-3.5 w-3.5 text-yellow-600" />
-                      </button>
-                    )}
                   </motion.div>
                 ))
               )

@@ -57,7 +57,7 @@ export const userApi = {
      * 받은 친구 요청 목록을 조회합니다.
      */
     getFriendRequests: async (): Promise<FriendRequest[]> => {
-        return apiClient.get('/user/friend/requests');
+        return apiClient.get('/user/friend/requests/received');
     },
 
     /**

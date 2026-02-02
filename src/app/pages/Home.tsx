@@ -234,8 +234,8 @@ export function Home() {
   };
 
   const handleStartChat = (contactId: string) => {
-    // Navigate to chat page
-    navigate(`/chat/${contactId}`);
+    // Navigate to direct chat page
+    navigate(`/direct-chat/${contactId}`);
   };
 
   const handleGMClick = () => {

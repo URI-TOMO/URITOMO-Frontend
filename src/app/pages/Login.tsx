@@ -51,7 +51,15 @@ export function Login({ onLogin }: LoginProps) {
 
     if (profile) {
       const userName = profile.name || profile.display_name;
+      const userId = profile.id || response.user_id;
+
+      // Save user ID separately for easy access
+      if (userId) {
+        localStorage.setItem('uri-tomo-user-id', userId);
+      }
+
       localStorage.setItem('uri-tomo-user-profile', JSON.stringify({
+        id: userId,
         name: userName,
         email: profile.email,
         avatar: profile.picture

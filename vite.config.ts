@@ -8,7 +8,7 @@ export default defineConfig(({ command, mode }) => {
   // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
   const env = loadEnv(mode, process.cwd(), '')
   // Use VITE_API_URL or VITE_BACKEND_URL if available
-  const target = env.VITE_API_URL || env.VITE_BACKEND_URL 
+  const target = env.VITE_API_URL || env.VITE_BACKEND_URL
 
   console.log('🔗 Proxy target set to:', target)
 
@@ -73,6 +73,11 @@ export default defineConfig(({ command, mode }) => {
         '/room': {
           target: target,
           changeOrigin: true,
+        },
+        '/dm': {
+          target: target,
+          changeOrigin: true,
+          ws: true, // Enable WebSocket proxying for DM
         },
       }
     },

@@ -9,13 +9,18 @@ export class MeetingSocket {
     private reconnectTimer: any = null;
     private isIntentionalClose = false;
 
-    constructor(roomId: string) {
+    constructor(roomId: string, pathPrefix: string = '/meeting/') {
         // Determine WebSocket URL based on environment or default
         const apiBaseUrl = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || 'http://10.0.255.80:8000';
         const wsBaseUrl = apiBaseUrl.replace(/^http/, 'ws');
-        const token = localStorage.getItem('uri-tomo-token');
+        const tokenRaw = localStorage.getItem('uri-tomo-token');
+        const token = (tokenRaw && tokenRaw !== 'null' && tokenRaw !== 'undefined') ? tokenRaw : '';
 
-        this.url = `${wsBaseUrl}/meeting/${roomId}?token=${token}`;
+        this.url = `${wsBaseUrl}${pathPrefix}${roomId}`;
+        if (token) {
+            this.url += `?token=${token}`;
+        }
+        console.log('🔧 [MeetingSocket] URL:', this.url);
     }
 
     public connect() {
@@ -97,7 +102,14 @@ export class MeetingSocket {
                     (window as any).electron.sendSignal('log', logData);
                 }
 
-                if (!this.isIntentionalClose && event.code !== 1008) { // 1008 is Policy Violation (e.g. invalid session)
+                if (event.code === 4003 || event.code === 1008) {
+                    console.error("❌ Authentication failed. Stopping reconnect.");
+                    // Trigger a global event so the UI can react (e.g. show login modal)
+                    window.dispatchEvent(new CustomEvent('auth-error', { detail: { source: 'websocket' } }));
+                    return;
+                }
+
+                if (!this.isIntentionalClose) {
                     this.scheduleReconnect();
                 }
             };
