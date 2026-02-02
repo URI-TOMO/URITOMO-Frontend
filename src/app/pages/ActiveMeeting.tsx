@@ -276,7 +276,7 @@ function ActiveMeetingContent({
           }
         ]);
       } else if (msg.type === 'room_connected') {
-        toast.success(`Connected to room: ${msg.data.room_id}`);
+        toast.success(t('connectedToRoom'));
       } else if (msg.type === 'translation') {
         const transData = msg.data;
 

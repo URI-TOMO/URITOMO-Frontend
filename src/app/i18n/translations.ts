@@ -240,6 +240,7 @@ export const translations: Record<string, Record<Language, string>> = {
     roomInviteAccepted: { ja: 'ルームに参加しました！', ko: '룸에 참여했어요!', en: 'Successfully joined the room!' },
     invitationSent: { ja: '招待を送信しました！', ko: '초대를 보냈어요!', en: 'Invitation sent!' },
     invitationSentDesc: { ja: '相手が承認すると、このルームに参加できます', ko: '상대방이 수락하면 이 룸에 참여할 수 있어요', en: 'They can join this room after accepting' },
+    connectedToRoom: { ja: 'ミーティングルームに接続しました！', ko: '미팅룸에 연결되었어요!', en: 'Connected to the meeting room!' },
     noContacts: { ja: '連絡先がありません', ko: '연락처가 없습니다', en: 'No contacts' },
     friendRequestSent: { ja: '友達リクエストを送信しました！', ko: '친구 요청을 보냈어요!', en: 'Friend request sent!' },
     friendRequestSentDesc: { ja: '相手が承認すると友達リストに追加されます', ko: '상대방이 수락하면 친구 목록에 추가돼요', en: 'They will appear in your friends list once accepted' },
