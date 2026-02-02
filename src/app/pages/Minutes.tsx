@@ -166,8 +166,8 @@ ${t('meetingMinutes')}
 ================
 
 ${t('meetingName')}: ${minutes.title}
-${t('startTime')}: ${minutes.startTime.toLocaleString('ja-JP')}
-${t('endTime')}: ${minutes.endTime.toLocaleString('ja-JP')}
+${t('startTime')}: ${minutes.startTime.toLocaleString(systemLanguage === 'ja' ? 'ja-JP' : systemLanguage === 'ko' ? 'ko-KR' : 'en-US')}
+${t('endTime')}: ${minutes.endTime.toLocaleString(systemLanguage === 'ja' ? 'ja-JP' : systemLanguage === 'ko' ? 'ko-KR' : 'en-US')}
 ${t('duration')}: ${Math.floor((minutes.endTime.getTime() - minutes.startTime.getTime()) / 60000)} ${t('minute')}
 
 ${t('participants')}:
@@ -230,7 +230,7 @@ ${minutes.summary?.decisions.map((d, i) => `${i + 1}. ${d}`).join('\n')}
               </Button>
               <div>
                 <h1 className="text-3xl font-bold text-white">{minutes.title}</h1>
-                <p className="text-white/90 text-sm">会議議事録</p>
+                <p className="text-white/90 text-sm">{t('meetingMinutes')}</p>
               </div>
             </div>
 
@@ -239,7 +239,7 @@ ${minutes.summary?.decisions.map((d, i) => `${i + 1}. ${d}`).join('\n')}
               className="bg-white text-yellow-600 hover:bg-yellow-50 shadow-md"
             >
               <Download className="h-5 w-5 mr-2" />
-              エクスポート
+              {t('export')}
             </Button>
           </div>
         </div>
@@ -254,7 +254,7 @@ ${minutes.summary?.decisions.map((d, i) => `${i + 1}. ${d}`).join('\n')}
               <div>
                 <p className="text-sm text-gray-600">{t('date')}</p>
                 <p className="font-semibold text-gray-900">
-                  {minutes.startTime.toLocaleDateString('ja-JP')}
+                  {minutes.startTime.toLocaleDateString(systemLanguage === 'ja' ? 'ja-JP' : systemLanguage === 'ko' ? 'ko-KR' : 'en-US')}
                 </p>
               </div>
             </div>
@@ -263,9 +263,9 @@ ${minutes.summary?.decisions.map((d, i) => `${i + 1}. ${d}`).join('\n')}
               <div>
                 <p className="text-sm text-gray-600">{t('time')}</p>
                 <p className="font-semibold text-gray-900">
-                  {minutes.startTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+                  {minutes.startTime.toLocaleTimeString(systemLanguage === 'ja' ? 'ja-JP' : systemLanguage === 'ko' ? 'ko-KR' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
                   {' - '}
-                  {minutes.endTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+                  {minutes.endTime.toLocaleTimeString(systemLanguage === 'ja' ? 'ja-JP' : systemLanguage === 'ko' ? 'ko-KR' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
                 </p>
               </div>
             </div>

@@ -544,7 +544,7 @@ export function MeetingRoom() {
                               <div className="flex items-center gap-1">
                                 <Calendar className="h-4 w-4" />
                                 <span>
-                                  {minute.date.toLocaleDateString('ja-JP', {
+                                  {minute.date.toLocaleDateString(systemLanguage === 'ja' ? 'ja-JP' : systemLanguage === 'ko' ? 'ko-KR' : 'en-US', {
                                     year: 'numeric',
                                     month: 'long',
                                     day: 'numeric',
@@ -553,11 +553,11 @@ export function MeetingRoom() {
                               </div>
                               <div className="flex items-center gap-1">
                                 <Clock className="h-4 w-4" />
-                                <span>{minute.duration}分</span>
+                                <span>{minute.duration} {t('minute')}</span>
                               </div>
                               <div className="flex items-center gap-1">
                                 <Users className="h-4 w-4" />
-                                <span>{minute.participants.length}人</span>
+                                <span>{minute.participants.length} {t('people')}</span>
                               </div>
                             </div>
                             {minute.summary && (
