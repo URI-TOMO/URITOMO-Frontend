@@ -1,3 +1,4 @@
+
 import { Language } from '../i18n/translations';
 
 interface SummaryData {
@@ -10,59 +11,61 @@ export function getMockSummaryData(language: Language): SummaryData {
     const summaries: Record<Language, SummaryData> = {
         ko: {
             keyPoints: [
-                '런칭 1주일 전, 고화질 영상 업로드 시 서버 지연(5초 이상) 및 셧다운 위험 발생',
-                '4K 화질 유지는 마케팅의 핵심 전략이므로 화질 타협 불가',
-                'Uri-Tomo AI가 비동기 처리 및 점진적 화질 적용 방식을 제안하여 채택됨',
-                '최악의 경우 대기열 초과 시 일시적 업로드 차단 및 예약 시스템으로 전환하기로 결정',
+                '대학생을 위한 국제회의 툴 아이데이션을 액션까지 정리하기로 함',
+                '국제회의에서 핵심 문제를 “언어 장벽 + 진행 불안”으로 정의하고, 한 화면에서 실시간 요약과 진행 가이드를 제공하는 방향에 공감대 형성',
+                '기능을 회의 전/중/후로 나누어 정리: (전) 시간대 변환·사전 질문 수집→아젠다화, (중) 타임박스·역할 가이드+요약, (후) 결정/할일 공유',
+                'MVP 우선순위로 “회의 중 요약+할일 자동 정리”와 “사전 질문→아젠다 자동화”를 상위로 선정',
             ],
             actionItems: [
-                '비동기 처리 시스템 개발 및 개발 서버 반영 - 내일 아침까지 완료 (Ryu)',
-                '고화질 변환 중 아이콘 및 프로그레스바 UI 디자인 제작 (Jin)',
-                '업로드 제한 중 화면 및 알림 예약 UI 디자인 작성 (Jin)',
-                '서킷 브레이커 기능을 백엔드에 구현하여 시스템 과부하 방지 (Ryu)',
+                'MVP 요구사항을 1페이지로 정리 (Ahn)',
+                '학생 페르소나와 핵심 페인포인트 3가지 정리 (Ryu)',
+                '사전 준비 플로우(초대 링크, 시간대 변환, 사전 질문 수집→아젠다화) 작성 (Jo)',
+                '기술 구성 메모(프론트/백엔드/AI 연동, 실시간 협업 구성) 작성 (Shuhei)',
             ],
             decisions: [
-                '1안: 비동기 처리(Asynchronous Processing)를 통한 저화질 프리뷰 우선 생성 및 4K 원본 후처리',
-                '2안: 대기열 한계치(5,000건) 초과 시 Upload Throttling 및 예약 알림 시스템 적용',
-                '런칭 종료 후 개발팀에게 야키니쿠 회식 제공 (Shuhei 약속)',
+                'MVP 범위는 “회의 중 요약(요점/결정/할일) + 진행 가이드”를 중심으로 하고, “사전 질문→아젠다화”를 두 번째 축으로 가져감',
+                '초기 구현은 웹앱 기반으로 단순화하고, 실시간 노트(예: Firebase/Supabase류) + 요약/추출 중심의 AI 연동 구조를 우선 검토',
+                '다음 정렬 미팅을 10분으로 짧게 다시 진행해 산출물(요구사항/페르소나/플로우/기술메모)을 합치기로 함',
             ],
         },
+
         ja: {
             keyPoints: [
-                'ローンチ1週間前、高画質動画アップロード時にサーバー遅延(5秒以上)およびシャットダウンリスクが発生',
-                '4K画質の維持はマーケティングの核心戦略であり、画質妥協は不可',
-                'Uri-Tomo AIが非同期処理と段階的画質適用方式を提案し、採用',
-                '最悪の場合、キュー超過時に一時的なアップロード制限と予約システムに切り替えることを決定',
+                '大学生向け国際会議ツールのアイデアを整理し、方向性と次アクションまで決める方針で開始',
+                '国際会議の核心課題を「言語の壁 + 進行不安」と定義し、1画面でリアルタイム要約と進行ガイドを提供する方向に合意',
+                '機能を会議の前/中/後で整理：(前)時差変換・事前質問→議題化、(中)タイムボックス/役割ガイド+要約、(後)決定/ToDo共有',
+                'MVP優先度として「会議中の要約+ToDo自動整理」と「事前質問→議題自動化」を上位に設定',
             ],
             actionItems: [
-                '非同期処理システムの開発と開発サーバーへの反映 - 明朝までに完了 (Ryu)',
-                '高画質変換中のアイコンとプログレスバーUIデザイン制作 (Jin)',
-                'アップロード制限中の画面と通知予約UIデザイン作成 (Jin)',
-                'サーキットブレーカー機能をバックエンドに実装してシステム過負荷防止 (Ryu)',
+                'MVP要件を1ページに整理 (Ahn)',
+                '学生ペルソナと主要ペインポイント3つを整理 (Ryu)',
+                '事前準備フロー（招待リンク、時差変換、事前質問→議題化）を作成 (Jo)',
+                '技術構成メモ（フロント/バック/AI連携、リアルタイム協業）を作成 (Shuhei)',
             ],
             decisions: [
-                '案1: 非同期処理(Asynchronous Processing)による低画質プレビュー優先生成と4K原本後処理',
-                '案2: キュー上限(5,000件)超過時にUpload Throttlingと予約通知システムを適用',
-                'ローンチ終了後、開発チームに焼肉会食を提供 (Shuheiの約束)',
+                'MVPは「会議中の要約（要点/決定/ToDo）+進行ガイド」を中心にし、「事前質問→議題化」を第2軸として採用',
+                '初期実装はWebアプリに単純化し、リアルタイムノート（例：Firebase/Supabase系）+要約/抽出中心のAI連携を優先検討',
+                '次回は10分の短い同期で、要件/ペルソナ/フロー/技術メモを統合する',
             ],
         },
+
         en: {
             keyPoints: [
-                'One week before launch, server delays (5+ seconds) and shutdown risks occurred during high-quality video uploads',
-                'Maintaining 4K quality is a core marketing strategy, so quality compromise is not acceptable',
-                'Uri-Tomo AI proposed and adopted asynchronous processing and progressive quality application approach',
-                'Decided to switch to temporary upload blocking and reservation system when queue exceeds capacity in worst case',
+                'Started a 3-minute ideation to align on direction and next actions for an international meeting tool for university students',
+                'Defined the core problem as “language barriers + facilitation anxiety” and aligned on a single-screen experience with real-time summarization and facilitation guidance',
+                'Organized features across before/during/after meeting: (before) time-zone conversion and pre-questions → agenda, (during) timeboxing/roles guidance + summaries, (after) sharing decisions and action items',
+                'Set MVP priorities as “in-meeting summary + action-item extraction” first, and “pre-questions → agenda automation” second',
             ],
             actionItems: [
-                'Develop asynchronous processing system and deploy to dev server - Complete by tomorrow morning (Ryu)',
-                'Create icon and progress bar UI design during high-quality conversion (Jin)',
-                'Write screen and notification reservation UI design during upload restriction (Jin)',
-                'Implement circuit breaker functionality in backend to prevent system overload (Ryu)',
+                'Create a one-page MVP requirements doc (Ahn)',
+                'Define a student persona and top 3 pain points (Ryu)',
+                'Draft the pre-meeting flow (invite link, time-zone conversion, pre-questions → agenda) (Jo)',
+                'Draft a technical architecture memo (front/back/AI integration, real-time collaboration) (Shuhei)',
             ],
             decisions: [
-                'Option 1: Generate low-quality preview first and post-process 4K original through Asynchronous Processing',
-                'Option 2: Apply Upload Throttling and reservation notification system when queue limit (5,000) is exceeded',
-                'Provide yakiniku dinner for development team after launch completion (Shuhei\'s promise)',
+                'MVP will focus on “in-meeting summaries (key points/decisions/action items) + facilitation guidance”, with “pre-questions → agenda” as the second pillar',
+                'Initial build should be simplified as a web app with a real-time note component (e.g., Firebase/Supabase-like) and AI focused on summarization/extraction',
+                'Hold a short 10-minute follow-up sync to merge deliverables (requirements/persona/flow/tech memo) into one plan',
             ],
         },
     };
