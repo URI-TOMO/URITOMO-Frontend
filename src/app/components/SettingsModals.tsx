@@ -20,6 +20,7 @@ interface ProfileSettingsModalProps {
   onNameChange: (name: string) => void;
   onAvatarChange: (avatar: string) => void;
   onAvatarTypeChange: (type: 'emoji' | 'image' | 'none') => void;
+  onAvatarImageUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onSave: () => void;
 }
 
@@ -34,6 +35,7 @@ export function ProfileSettingsModal({
   onNameChange,
   onAvatarChange,
   onAvatarTypeChange,
+  onAvatarImageUpload,
   onSave,
 }: ProfileSettingsModalProps) {
   const { t } = useTranslation();
@@ -47,6 +49,15 @@ export function ProfileSettingsModal({
         animate={{ opacity: 1, scale: 1 }}
         className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
       >
+        {/* Hidden File Input */}
+        <input
+          type="file"
+          id="avatar-upload"
+          className="hidden"
+          accept="image/*"
+          onChange={onAvatarImageUpload}
+        />
+
         {/* Header */}
         <div className="bg-gradient-to-r from-yellow-400 to-amber-400 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -103,7 +114,7 @@ export function ProfileSettingsModal({
                       onAvatarChange('😊');
                     }
                   }}
-                  className="w-full p-3 rounded-lg border-2 transition-all flex items-center gap-3 hover:border-yellow-400 hover:bg-yellow-50"
+                  className={`w-full p-3 rounded-lg border-2 transition-all flex items-center gap-3 ${editedAvatarType === 'emoji' ? 'border-yellow-400 bg-yellow-50' : 'hover:border-yellow-400 hover:bg-yellow-50'}`}
                 >
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-100 to-amber-100 flex items-center justify-center text-xl">
                     😊
@@ -114,14 +125,27 @@ export function ProfileSettingsModal({
                   </div>
                 </button>
 
-
+                <button
+                  onClick={() => {
+                    document.getElementById('avatar-upload')?.click();
+                  }}
+                  className={`w-full p-3 rounded-lg border-2 transition-all flex items-center gap-3 ${editedAvatarType === 'image' ? 'border-yellow-400 bg-yellow-50' : 'hover:border-yellow-400 hover:bg-yellow-50'}`}
+                >
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-100 to-amber-100 flex items-center justify-center text-xl">
+                    <ImageIcon className="h-5 w-5 text-yellow-600" />
+                  </div>
+                  <div className="text-left flex-1">
+                    <p className="font-semibold text-gray-900">{t('chooseImage')}</p>
+                    <p className="text-xs text-gray-500">{t('uploadPhoto')}</p>
+                  </div>
+                </button>
 
                 <button
                   onClick={() => {
                     onAvatarTypeChange('none');
                     onAvatarChange('');
                   }}
-                  className="w-full p-3 rounded-lg border-2 transition-all flex items-center gap-3 hover:border-gray-400 hover:bg-gray-50"
+                  className={`w-full p-3 rounded-lg border-2 transition-all flex items-center gap-3 ${editedAvatarType === 'none' ? 'border-gray-400 bg-gray-50' : 'hover:border-gray-400 hover:bg-gray-50'}`}
                 >
                   <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
                     <User className="h-5 w-5 text-gray-600" />
