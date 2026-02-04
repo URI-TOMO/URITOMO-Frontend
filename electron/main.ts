@@ -33,6 +33,7 @@ function createWindow() {
       contextIsolation: true, // trueでないとpreloadが動きません
       nodeIntegration: false,
     },
+    icon: path.join(process.env.VITE_PUBLIC || '', 'app-icon.png'),
   })
 
   // ▼▼▼ 画面共有リクエストのハンドリング ▼▼▼

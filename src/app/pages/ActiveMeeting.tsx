@@ -198,6 +198,39 @@ function ActiveMeetingContent({
   // const [participants, setParticipants] = useState<Participant[]>([]); // Removed in favor of useParticipants
   const [meetingTitle, setMeetingTitle] = useState('Loading...');
 
+  // Track all remote participants who have been in the meeting during this session
+  const [allRemoteParticipants, setAllRemoteParticipants] = useState<Array<{ identity: string; name: string; language: string }>>([]);
+
+  useEffect(() => {
+    const remoteParticipants = visibleParticipants.filter(p => !p.isLocal);
+    if (remoteParticipants.length > 0) {
+      setAllRemoteParticipants(prev => {
+        const updated = [...prev];
+        let changed = false;
+
+        remoteParticipants.forEach(p => {
+          if (!updated.some(up => up.identity === p.identity)) {
+            updated.push({
+              identity: p.identity,
+              name: p.name || 'Unknown',
+              language: 'unknown'
+            });
+            changed = true;
+          } else {
+            // Update name if it was 'Unknown' and we now have a real name
+            const existing = updated.find(up => up.identity === p.identity);
+            if (existing && existing.name === 'Unknown' && p.name) {
+              existing.name = p.name;
+              changed = true;
+            }
+          }
+        });
+
+        return changed ? updated : prev;
+      });
+    }
+  }, [visibleParticipants]);
+
   useEffect(() => {
     if (meetingId) {
       roomApi.getRoomDetail(meetingId)
@@ -662,7 +695,7 @@ function ActiveMeetingContent({
           name: currentUser.name,
           language: currentUser.language,
         },
-        ...visibleParticipants.filter(p => !p.isLocal).map(p => ({
+        ...allRemoteParticipants.map(p => ({
           name: p.name || 'Unknown',
           language: 'unknown',
         })),

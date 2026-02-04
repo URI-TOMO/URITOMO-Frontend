@@ -557,7 +557,7 @@ export function MeetingRoom() {
                               </div>
                               <div className="flex items-center gap-1">
                                 <Users className="h-4 w-4" />
-                                <span>4 {t('people')}</span>
+                                <span>{minute.participants.length} {t('people')}</span>
                               </div>
                             </div>
                             {minute.summary && (
